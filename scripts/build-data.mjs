@@ -11,9 +11,12 @@
 //   --out <dir>        Zielordner (Standard: _site)
 //   --from-json <file> lokale Testdaten statt Sheet ({cruises, stops} im Seed-Format)
 //   --plain            zusätzlich unverschlüsselte data.json schreiben (nur lokal!)
+//   --photos-dir <dir> lokale Testfotos statt Google Drive (siehe scripts/photos.mjs)
+//   --photo-cache <d>  Cache-Ordner für verschlüsselte Fotos (Standard: .photo-cache)
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { webcrypto as crypto } from 'node:crypto';
+import { webcrypto as crypto, createHash } from 'node:crypto';
+import { collectPhotos, collectLocalPhotos } from './photos.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,6 +26,7 @@ const opt = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1
 const OUT = opt('--out') || '_site';
 const FROM_JSON = opt('--from-json');
 const PLAIN = args.includes('--plain');
+const PHOTOS_DIR = opt('--photos-dir'); // nur lokal: Ordner mit manifest.json statt Google Drive
 
 // Muss mit site/assets/js/crypto.js übereinstimmen
 const KDF = { salt: 'weiffenbach.com/schiffsurlaube/v1', iterations: 310000 };
@@ -250,15 +254,17 @@ async function build() {
 
 // ---------- Verschlüsselung ----------
 const b64 = (buf) => Buffer.from(buf).toString('base64');
-async function encrypt(obj, password) {
+async function deriveKey(password) {
   const enc = new TextEncoder();
   // Gleiche Normalisierung wie site/assets/js/crypto.js (z. B. Zeilenumbruch aus dem Secret entfernen)
   const base = await crypto.subtle.importKey('raw', enc.encode(password.trim().normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
-  const key = await crypto.subtle.deriveKey(
+  return crypto.subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(KDF.salt), iterations: KDF.iterations },
-    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+    base, { name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+}
+async function encrypt(obj, key) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
   return { v: 1, alg: 'AES-GCM', kdf: 'PBKDF2-SHA256', iterations: KDF.iterations, iv: b64(iv), ct: b64(ct) };
 }
 
@@ -266,9 +272,17 @@ const data = await build();
 const password = process.env.SITE_PASSWORD;
 if (!password) throw new Error('SITE_PASSWORD ist nicht gesetzt.');
 if (password.trim().length < 10) warn('SITE_PASSWORD ist kürzer als 10 Zeichen – ein längeres Passwort schützt deutlich besser.');
+const key = await deriveKey(password);
+// Kennung des Schlüssels für Foto-Dateinamen und Cache (verrät nichts über das Passwort)
+const keyId = createHash('sha256').update(Buffer.from(await crypto.subtle.exportKey('raw', key))).digest('hex').slice(0, 16);
+
+const photoArgs = { key, keyId, cruises: data.cruises, stops: data.stops, outDir: OUT, warn };
+data.photos = PHOTOS_DIR
+  ? await collectLocalPhotos({ ...photoArgs, dir: PHOTOS_DIR })
+  : await collectPhotos({ ...photoArgs, cacheDir: opt('--photo-cache') || '.photo-cache' });
 
 await mkdir(path.join(OUT, 'data'), { recursive: true });
-await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt(data, password)));
+await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt(data, key)));
 if (PLAIN) await writeFile(path.join(OUT, 'data', 'data.json'), JSON.stringify(data, null, 1));
 
-console.log(`✓ ${data.cruises.length} Reisen, ${data.stops.length} Stopps verschlüsselt geschrieben (${warnings.length} Hinweise).`);
+console.log(`✓ ${data.cruises.length} Reisen, ${data.stops.length} Stopps, ${data.photos.length} Fotos verschlüsselt geschrieben (${warnings.length} Hinweise).`);

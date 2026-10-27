@@ -3,3 +3,4 @@ node_modules/
 site/data/
 *.local.json
 .DS_Store
+.photo-cache/

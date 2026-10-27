@@ -1,6 +1,7 @@
 import { deriveKey, decrypt, rememberKey, storedKey, forgetKey } from './crypto.js';
 import { columns, hbars, dataTable, esc, fmt } from './charts.js';
 import { TripMap, greatCircle, unwrap } from './map.js';
+import { initTripPanel, openTrip, setPhotoKey } from './trip.js';
 
 const $ = (s) => document.querySelector(s);
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -59,7 +60,7 @@ async function init() {
   if (blob) {
     const key = await storedKey();
     if (key) {
-      try { start(await decrypt(blob, key)); return; } catch { forgetKey(); }
+      try { start(await decrypt(blob, key), key); return; } catch { forgetKey(); }
     }
   }
 }
@@ -76,7 +77,7 @@ async function onLogin(ev) {
     const key = await deriveKey($('#pw').value, blob.iterations);
     const data = await decrypt(blob, key);
     await rememberKey(key, $('#remember').checked);
-    start(data);
+    start(data, key);
   } catch (err) {
     // Nur ein fehlgeschlagenes Entschlüsseln (OperationError) bedeutet ein falsches Passwort
     msg.textContent = err?.name === 'OperationError' ? 'Das Passwort stimmt leider nicht.' : `Technischer Fehler: ${err?.message || err}`;
@@ -98,7 +99,8 @@ function applyTheme(theme) {
 let DATA, map;
 const state = { from: null, to: null, line: '', region: '', planned: false, search: '', selected: null, logAll: false };
 
-function start(data) {
+function start(data, key) {
+  setPhotoKey(key);
   DATA = prepare(data);
   $('#gate').hidden = true;
   $('#app').hidden = false;
@@ -115,7 +117,11 @@ function start(data) {
   setupFilters(years);
   setupChrome();
   renderNext();
-  map = new TripMap('map', { onSelectCruise: selectCruise });
+  map = new TripMap('map', { onSelectCruise: selectCruise, onOpenTrip: (id) => openTrip(DATA.cruises[id]) });
+  initTripPanel({
+    cruises: DATA.cruises, countries: DATA.countries,
+    onShowMap: (id) => { state.selected = null; selectCruise(id); $('.card-map').scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+  });
   render();
 }
 
@@ -140,6 +146,7 @@ function prepare(data) {
     c.seaDays = Math.max(0, c.nights + 1 - portDays);
     c.cross = crossings(c.legs);
     c.shipInfo = data.ships?.[c.ship] || null;
+    c.photos = (data.photos || []).filter((p) => p.cruise === c.id);
   }
   // Erstbesuche: Häfen und Länder, die auf dieser Reise zum ersten Mal angelaufen wurden
   const seenPorts = new Set(), seenCountries = new Set();
@@ -547,9 +554,9 @@ function renderLog(m) {
   const shown = q || state.logAll ? list.slice().reverse() : list.slice().reverse().slice(0, LOG_LIMIT);
   const byYear = group(shown, (c) => year(c.start));
   $('#log').innerHTML = [...byYear].map(([y, trips]) => `<li class="log-year">${y}</li>` + trips.map((c) => `
-    <li class="trip${state.selected === c.id ? ' active' : ''}" data-id="${c.id}" tabindex="0" role="button" aria-label="${esc(c.ship)}, ${esc(c.route)} auf der Karte zeigen">
+    <li class="trip${state.selected === c.id ? ' active' : ''}" data-id="${c.id}" tabindex="0" role="button" aria-label="Details zu ${esc(c.ship)}, ${esc(c.route)}">
       <span class="trip-date">${fmtDate(c.start, { day: '2-digit', month: '2-digit' })} – ${fmtDate(c.end, { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
+      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}${c.photos.length ? `<span class="badge">${plural(c.photos.length, 'Foto', 'Fotos')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
       <span class="trip-meta"><b>${c.nights}</b> Nächte<br>${plural(c.seaDays, 'Seetag', 'Seetage')} · ${fmt.format(Math.round(c.nm))} sm</span>
       <span class="trip-ports">${c.portNames.map((p) => (c.newPorts.includes(p) ? `<b>${esc(p)}</b>` : esc(p))).join(' · ') || '–'}</span>
     </li>`).join('')).join('') || '<li class="empty">Keine passende Reise.</li>';
@@ -557,7 +564,7 @@ function renderLog(m) {
   moreBtn.hidden = !!q || list.length <= LOG_LIMIT;
   moreBtn.textContent = state.logAll ? 'Weniger anzeigen' : `Alle ${list.length} Reisen anzeigen`;
   document.querySelectorAll('.trip').forEach((t) => {
-    const go = () => { selectCruise(+t.dataset.id); if (state.selected != null) $('.card-map').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    const go = () => openTrip(DATA.cruises[+t.dataset.id]);
     t.addEventListener('click', go);
     t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });

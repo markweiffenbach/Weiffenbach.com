@@ -33,10 +33,18 @@ jobs:
           V=${GITHUB_SHA::8}
           sed -i -E "s#(assets/(css|js)/[a-z]+\.(css|js))\"#\1?v=$V\"#g" _site/index.html
           sed -i -E "s#from '\./([a-z]+)\.js'#from './\1.js?v=$V'#g" _site/assets/js/*.js
+      - name: Foto-Cache laden
+        uses: actions/cache@v4
+        with:
+          path: .photo-cache
+          key: photos-${{ github.run_id }}
+          restore-keys: photos-
       - name: Daten aus dem Sheet holen und verschlüsseln
         env:
           SHEET_PUBLISH_URL: ${{ secrets.SHEET_PUBLISH_URL }}
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+          PHOTO_FOLDER_ID: ${{ secrets.PHOTO_FOLDER_ID }}
         run: node scripts/build-data.mjs --out _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
