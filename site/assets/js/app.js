@@ -130,7 +130,8 @@ function prepare(data) {
   const stops = data.stops.filter((s) => s.lat != null && s.lng != null).map((s) => ({ ...s, cruise: s.cruise != null ? byId.get(s.cruise) : null }));
   for (const s of stops) if (s.cruise) s.cruise.stops.push(s);
   for (const c of cruises) {
-    c.legs = c.stops.filter((s) => s.type !== 'Landaufenthalt');
+    // Route über das Datum bilden: Am Wechseltag gehört der Hafen zu beiden Reisen (Aus- und Einschiffung)
+    c.legs = stops.filter((s) => s.type !== 'Landaufenthalt' && s.cruise && c.start <= s.d && s.d <= c.end);
     c.nm = c.legs.reduce((sum, s, i) => (i ? sum + nmBetween(c.legs[i - 1], s) : 0), 0);
     c.portNames = [...new Set(c.legs.filter((s) => s.type === 'Hafen').map((s) => s.port))];
   }

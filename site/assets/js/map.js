@@ -70,6 +70,7 @@ export class TripMap {
     this.map.attributionControl.setPrefix(false).addAttribution('Natural Earth');
     this.map.setView([25, 15], 2);
     this.layers = { countries: L.layerGroup().addTo(this.map), routes: L.layerGroup().addTo(this.map), ports: L.layerGroup().addTo(this.map) };
+    this.labels = L.layerGroup().addTo(this.map);
     this.selected = null;
     this.ready = fetch('assets/geo/countries-50m.json').then((r) => r.json()).then((topo) => {
       const fc = topojson.feature(topo, topo.objects.countries);
@@ -189,13 +190,22 @@ export class TripMap {
       else if (cid === id) { group.setStyle({ color: this.colors.accent, weight: 4, opacity: 1 }); group.bringToFront(); }
       else group.setStyle({ opacity: 0.12, weight: 1.5 });
     }
+    const c = id == null ? null : this.model.cruises.find((x) => x.id === id);
+    const onRoute = new Set(c ? c.legs.map((s) => s.port) : []);
     for (const { m, p } of this.portLayers) {
-      const on = id == null || p.visits.some((v) => v.cruise?.id === id);
+      const on = !c || onRoute.has(p.port);
       m.setStyle({ fillOpacity: on ? 1 : 0.15, opacity: on ? 1 : 0.15 });
     }
-    if (id == null) { focus.hidden = true; return; }
-    const c = this.model.cruises.find((x) => x.id === id);
+    this.labels.clearLayers();
     if (!c) { focus.hidden = true; return; }
+    // Ein- und Ausschiffungshafen beschriften
+    if (c.legs.length) {
+      const first = c.legs[0], last = c.legs.at(-1);
+      const label = (s, text, dir) => L.tooltip({ permanent: true, direction: dir, className: 'port-label', offset: [0, dir === 'top' ? -8 : 8] })
+        .setLatLng([s.lat, s.lng]).setContent(text).addTo(this.labels);
+      if (first.port === last.port) label(first, `Start &amp; Ziel: <b>${esc(first.port)}</b>`, 'top');
+      else { label(first, `Start: <b>${esc(first.port)}</b>`, 'top'); label(last, `Ziel: <b>${esc(last.port)}</b>`, 'bottom'); }
+    }
     focus.hidden = false;
     focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm${c.captain ? ` · Kapitän ${esc(c.captain)}` : ''}</span><br><button class="text-btn" type="button">Alle Reisen zeigen</button>`;
     focus.querySelector('button').addEventListener('click', () => this.onSelectCruise(null));
