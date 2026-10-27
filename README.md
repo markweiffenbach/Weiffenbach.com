@@ -17,7 +17,9 @@ Google Sheet ──(täglich / auf Knopfdruck)──► GitHub Action ──► 
 ```
 
 Neue Reise eintragen: im Sheet eine Zeile in **Kreuzfahrten** und die Hafentage in **Stopps** ergänzen.
-Alles andere (Nächte, Zuordnung der Häfen, Auswertung, Koordinaten neuer Häfen) passiert automatisch.
+Alles andere (Nächte, Seetage, Zuordnung der Häfen, Erstbesuche, Äquator- und Datumsgrenzen-Überquerungen,
+Auswertung, Koordinaten neuer Häfen) passiert automatisch. Für ein neues Schiff im Tab **Schiffe** eine Zeile
+mit Baujahr, BRZ, Länge und Passagieren ergänzen.
 Die Homepage übernimmt die Änderungen jede Nacht. Sofort geht es über GitHub → **Actions** →
 „Homepage aktualisieren“ → **Run workflow** (oder über das optionale Menü im Sheet, siehe unten).
 
@@ -26,11 +28,12 @@ Die Homepage übernimmt die Änderungen jede Nacht. Sofort geht es über GitHub 
 ### 1. Sheet veröffentlichen (nur die zwei Daten-Tabs)
 
 Im Sheet: **Datei → Freigeben → Im Web veröffentlichen**
-1. Unter „Veröffentlichte Inhalte und Einstellungen“ statt „Gesamtes Dokument“ nur **Kreuzfahrten** und **Stopps** auswählen.
+1. Unter „Veröffentlichte Inhalte und Einstellungen“ statt „Gesamtes Dokument“ nur **Kreuzfahrten**, **Stopps** und **Schiffe** auswählen
+   („Schiffe“ ist optional: ohne diesen Tab fehlen nur die Schiffsdaten).
 2. Format: **Kommagetrennte Werte (.csv)** → **Veröffentlichen**.
 3. Den angezeigten Link kopieren (beginnt mit `https://docs.google.com/spreadsheets/d/e/2PACX-…`).
 
-Hinweis: Wer genau diesen langen Link kennt, kann die zwei Tabs lesen. Er ist nicht zu erraten und steht nur
+Hinweis: Wer genau diesen langen Link kennt, kann diese Tabs lesen. Er ist nicht zu erraten und steht nur
 als Secret bei GitHub, also genauso privat wie bisher der Link zur Google-Maps-Karte.
 
 ### 2. Secrets bei GitHub hinterlegen

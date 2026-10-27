@@ -1,6 +1,6 @@
 import { deriveKey, decrypt, rememberKey, storedKey, forgetKey } from './crypto.js';
 import { columns, hbars, dataTable, esc, fmt } from './charts.js';
-import { TripMap } from './map.js';
+import { TripMap, greatCircle, unwrap } from './map.js';
 
 const $ = (s) => document.querySelector(s);
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -134,8 +134,45 @@ function prepare(data) {
     c.legs = stops.filter((s) => s.type !== 'Landaufenthalt' && s.cruise && c.start <= s.d && s.d <= c.end);
     c.nm = c.legs.reduce((sum, s, i) => (i ? sum + nmBetween(c.legs[i - 1], s) : 0), 0);
     c.portNames = [...new Set(c.legs.filter((s) => s.type === 'Hafen').map((s) => s.port))];
+    c.countryNames = [...new Set(c.legs.filter((s) => s.type === 'Hafen').map((s) => s.country))];
+    // Seetage: Tage an Bord (Nächte + 1) ohne Hafentage
+    const portDays = new Set(c.legs.filter((s) => s.type === 'Hafen').map((s) => s.d)).size;
+    c.seaDays = Math.max(0, c.nights + 1 - portDays);
+    c.cross = crossings(c.legs);
+    c.shipInfo = data.ships?.[c.ship] || null;
   }
-  return { generated: data.generated, cruises, stops, countries: data.countries || {} };
+  // Erstbesuche: Häfen und Länder, die auf dieser Reise zum ersten Mal angelaufen wurden
+  const seenPorts = new Set(), seenCountries = new Set();
+  for (const c of cruises) {
+    c.newPorts = c.portNames.filter((p) => !seenPorts.has(p));
+    c.newCountries = c.countryNames.filter((p) => !seenCountries.has(p));
+    c.portNames.forEach((p) => seenPorts.add(p));
+    c.countryNames.forEach((p) => seenCountries.add(p));
+  }
+  return { generated: data.generated, cruises, stops, countries: data.countries || {}, ships: data.ships || {} };
+}
+
+// Überquerungen von Äquator, Wendekreisen, Polarkreis und Datumsgrenze entlang der (Großkreis-)Route
+const TROPIC = 23.44, POLAR = 66.56;
+function crossings(legs) {
+  const out = { equator: 0, cancer: 0, capricorn: 0, arctic: 0, dateline: 0 };
+  if (legs.length < 2) return out;
+  let path = [];
+  for (let i = 1; i < legs.length; i++) {
+    const seg = greatCircle([legs[i - 1].lat, legs[i - 1].lng], [legs[i].lat, legs[i].lng]);
+    path = path.concat(i > 1 ? seg.slice(1) : seg);
+  }
+  path = unwrap(path);
+  const side = (v, line) => (v > line ? 1 : v < line ? -1 : 0);
+  for (let i = 1; i < path.length; i++) {
+    const [la0, lo0] = path[i - 1], [la1, lo1] = path[i];
+    for (const [key, line] of [['equator', 0], ['cancer', TROPIC], ['capricorn', -TROPIC], ['arctic', POLAR]]) {
+      const a = side(la0, line), b = side(la1, line);
+      if (a && b && a !== b) out[key]++;
+    }
+    if (Math.floor((lo0 + 180) / 360) !== Math.floor((lo1 + 180) / 360)) out.dateline++;
+  }
+  return out;
 }
 
 function filtered() {
@@ -279,6 +316,7 @@ function renderKpis(m) {
   const planned = m.cruises.length - done.length;
   const nights = m.cruises.reduce((s, c) => s + c.nights, 0);
   const nm = m.cruises.reduce((s, c) => s + c.nm, 0);
+  const seaDays = m.cruises.reduce((s, c) => s + c.seaDays, 0);
   const continents = new Set(m.countries.flatMap((c) => [...c.k]));
   bind('nights', fmt.format(nights));
   const y = Math.floor(nights / 365), mo = Math.round((nights % 365) / 30.44);
@@ -293,6 +331,7 @@ function renderKpis(m) {
     ['Schiffe', new Set(m.cruises.map((c) => c.ship)).size, ''],
     ['Reedereien', new Set(m.cruises.map((c) => c.line)).size, ''],
     ['Seemeilen', Math.round(nm), `≈ ${(nm / EARTH_NM).toLocaleString('de-DE', { maximumFractionDigits: 1 })}× um die Erde`],
+    ['Seetage', seaDays, nights ? `${Math.round((seaDays / (nights + m.cruises.length)) * 100)} % der Tage an Bord` : ''],
   ];
   $('#kpis').innerHTML = tiles.map(([l, v, n]) => `<div class="kpi"><p class="kpi-label">${l}</p><p class="kpi-value">${fmt.format(v)}</p>${n ? `<p class="kpi-note">${n}</p>` : ''}</div>`).join('');
 }
@@ -358,9 +397,20 @@ function renderCharts(m) {
   chartOrTable('lines', $('#c-lines'), () => hbars($('#c-lines'), lineRows, { limit: 10 }), cols3('Reederei'), lineRows);
   const regionRows = nightsBy((c) => c.region);
   chartOrTable('regions', $('#c-regions'), () => hbars($('#c-regions'), regionRows, { limit: 10 }), cols3('Fahrtgebiet'), regionRows);
-  const shipRows = nightsBy((c) => c.ship, (list) => `${list[0].line} · ${plural(list.length, 'Reise', 'Reisen')}`);
+  const shipRows = nightsBy((c) => c.ship, (list) => {
+    const i = list[0].shipInfo;
+    return `${list[0].line} · ${plural(list.length, 'Reise', 'Reisen')}${i?.gt ? ` · ${fmt.format(i.gt)} BRZ` : ''}`;
+  }).map((r) => {
+    const i = DATA.ships[r.label];
+    if (!i) return r;
+    const facts = [i.built && `in Dienst seit ${i.built}`, i.gt && `${fmt.format(i.gt)} BRZ`, i.length && `${fmt.format(i.length)} m lang`,
+      i.pax && `${fmt.format(i.pax)} Passagiere`].filter(Boolean).join(' · ');
+    return { ...r, built: i.built ? String(i.built) : '', gt: i.gt || 0,
+      tip: `${r.tip}<br><span class="muted">${facts}${i.note ? ` (${esc(i.note)})` : ''}</span>` };
+  });
   chartOrTable('ships', $('#c-ships'), () => hbars($('#c-ships'), shipRows, { limit: 12 }),
-    [{ key: 'label', label: 'Schiff' }, { key: 'sub', label: 'Reederei · Reisen' }, { key: 'value', label: 'Nächte', num: true }], shipRows);
+    [{ key: 'label', label: 'Schiff' }, { key: 'sub', label: 'Reederei · Reisen · Größe' }, { key: 'built', label: 'In Dienst seit' },
+      { key: 'value', label: 'Nächte', num: true }], shipRows);
 
   // Häfen
   const portRows = m.harbour.map((p) => ({
@@ -433,9 +483,47 @@ function renderFacts(m) {
     ['Erste Reise', `${MONTHS[+first.start.slice(5, 7) - 1]} ${year(first.start)}`, `${first.ship} · ${first.route}`],
     ['Ø Reisedauer', `${(m.cruises.reduce((s, c) => s + c.nights, 0) / m.cruises.length).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Nächte`,
       `Ø ${(m.cruises.reduce((s, c) => s + c.portNames.length, 0) / m.cruises.length).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Häfen pro Reise`],
+    ...extraFacts(m),
     newPorts && ['Zuletzt neu entdeckt', plural(newPorts.length, 'neuer Hafen', 'neue Häfen'), newPorts.length ? newPorts.slice(0, 4).join(', ') + (newPorts.length > 4 ? ' …' : '') : `${lastTrip.ship}, ${year(lastTrip.start)}`],
   ].filter(Boolean);
   el.innerHTML = facts.map(([l, v, n]) => `<div class="fact"><p class="fact-label">${esc(l)}</p><p class="fact-value">${esc(v)}</p><p class="fact-note">${esc(n)}</p></div>`).join('');
+}
+
+function extraFacts(m) {
+  const out = [];
+  const sum = (key) => m.cruises.reduce((s, c) => s + c.cross[key], 0);
+  const which = (key) => m.cruises.filter((c) => c.cross[key]).map((c) => `${c.ship} ${year(c.start)}`);
+  const eq = sum('equator');
+  if (eq) out.push(['Äquator überquert', `${eq}×`, which('equator').join(', ')]);
+  const dl = sum('dateline');
+  if (dl) out.push(['Datumsgrenze überquert', `${dl}×`, which('dateline').join(', ')]);
+  const tr = sum('cancer') + sum('capricorn');
+  if (tr) out.push(['Wendekreise überquert', `${tr}×`, `Krebs ${sum('cancer')}× · Steinbock ${sum('capricorn')}×`]);
+  const ar = sum('arctic');
+  if (ar) out.push(['Polarkreis überquert', `${ar}×`, which('arctic').join(', ')]);
+  const best = m.cruises.reduce((a, b) => (b.newPorts.length > (a?.newPorts.length ?? -1) ? b : a), null);
+  if (best?.newPorts.length) {
+    out.push(['Meiste Erstbesuche', plural(best.newPorts.length, 'neuer Hafen', 'neue Häfen'),
+      `${best.ship} ${year(best.start)}${best.newCountries.length ? ` · ${plural(best.newCountries.length, 'neues Land', 'neue Länder')}` : ''}`]);
+  }
+  const sea = m.cruises.reduce((a, b) => (b.seaDays > (a?.seaDays ?? -1) ? b : a), null);
+  if (sea) out.push(['Meiste Seetage', plural(sea.seaDays, 'Seetag', 'Seetage'), `${sea.ship} · ${sea.route} (${year(sea.start)})`]);
+  const withShip = m.cruises.filter((c) => c.shipInfo?.gt);
+  if (withShip.length) {
+    const big = withShip.reduce((a, b) => (b.shipInfo.gt > a.shipInfo.gt ? b : a));
+    const small = withShip.reduce((a, b) => (b.shipInfo.gt < a.shipInfo.gt ? b : a));
+    out.push(['Größtes Schiff', big.ship, `${fmt.format(big.shipInfo.gt)} BRZ · ${fmt.format(big.shipInfo.pax || 0)} Passagiere`]);
+    if (small.ship !== big.ship) out.push(['Kleinstes Schiff', small.ship, `${fmt.format(small.shipInfo.gt)} BRZ · ${fmt.format(small.shipInfo.pax || 0)} Passagiere`]);
+  }
+  const aged = m.cruises.filter((c) => c.shipInfo?.built);
+  if (aged.length) {
+    const avg = aged.reduce((s, c) => s + (year(c.start) - c.shipInfo.built), 0) / aged.length;
+    const newest = aged.reduce((a, b) => (year(b.start) - b.shipInfo.built < year(a.start) - a.shipInfo.built ? b : a));
+    out.push(['Ø Schiffsalter', `${avg.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Jahre`,
+      `zur Reisezeit · am neuesten: ${newest.ship} ${year(newest.start)}${year(newest.start) <= newest.shipInfo.built ? ' im Jahr der Indienststellung'
+        : ` (${plural(year(newest.start) - newest.shipInfo.built, 'Jahr', 'Jahre')} alt)`}`]);
+  }
+  return out;
 }
 
 function renderFlags(m) {
@@ -454,16 +542,16 @@ function renderFlags(m) {
 
 function renderLog(m) {
   const q = state.search;
-  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, c.captain || '', ...c.stops.map((s) => `${s.port} ${s.country}`)].join(' ').toLowerCase().includes(q));
+  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, ...c.stops.map((s) => `${s.port} ${s.country}`)].join(' ').toLowerCase().includes(q));
   const LOG_LIMIT = 12;
   const shown = q || state.logAll ? list.slice().reverse() : list.slice().reverse().slice(0, LOG_LIMIT);
   const byYear = group(shown, (c) => year(c.start));
   $('#log').innerHTML = [...byYear].map(([y, trips]) => `<li class="log-year">${y}</li>` + trips.map((c) => `
     <li class="trip${state.selected === c.id ? ' active' : ''}" data-id="${c.id}" tabindex="0" role="button" aria-label="${esc(c.ship)}, ${esc(c.route)} auf der Karte zeigen">
       <span class="trip-date">${fmtDate(c.start, { day: '2-digit', month: '2-digit' })} – ${fmtDate(c.end, { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}</span><br><span class="trip-route">${esc(c.route)}${c.captain ? ` · Kapitän ${esc(c.captain)}` : ''}</span></span>
-      <span class="trip-meta"><b>${c.nights}</b> Nächte<br>${fmt.format(Math.round(c.nm))} sm</span>
-      <span class="trip-ports">${c.portNames.map(esc).join(' · ') || '–'}</span>
+      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
+      <span class="trip-meta"><b>${c.nights}</b> Nächte<br>${plural(c.seaDays, 'Seetag', 'Seetage')} · ${fmt.format(Math.round(c.nm))} sm</span>
+      <span class="trip-ports">${c.portNames.map((p) => (c.newPorts.includes(p) ? `<b>${esc(p)}</b>` : esc(p))).join(' · ') || '–'}</span>
     </li>`).join('')).join('') || '<li class="empty">Keine passende Reise.</li>';
   const moreBtn = $('#log-more');
   moreBtn.hidden = !!q || list.length <= LOG_LIMIT;
