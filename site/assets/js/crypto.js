@@ -6,8 +6,11 @@ const enc = new TextEncoder();
 const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const toB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
 
+// Gleiche Normalisierung wie im Build: Leerzeichen am Rand ignorieren, Unicode einheitlich (NFC)
+export const normalizePassword = (pw) => pw.trim().normalize('NFC');
+
 export async function deriveKey(password, iterations) {
-  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const base = await crypto.subtle.importKey('raw', enc.encode(normalizePassword(password)), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(SALT), iterations },
     base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);

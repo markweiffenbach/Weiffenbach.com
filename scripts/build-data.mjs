@@ -229,7 +229,8 @@ async function build() {
 const b64 = (buf) => Buffer.from(buf).toString('base64');
 async function encrypt(obj, password) {
   const enc = new TextEncoder();
-  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  // Gleiche Normalisierung wie site/assets/js/crypto.js (z. B. Zeilenumbruch aus dem Secret entfernen)
+  const base = await crypto.subtle.importKey('raw', enc.encode(password.trim().normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
   const key = await crypto.subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(KDF.salt), iterations: KDF.iterations },
     base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
@@ -241,7 +242,7 @@ async function encrypt(obj, password) {
 const data = await build();
 const password = process.env.SITE_PASSWORD;
 if (!password) throw new Error('SITE_PASSWORD ist nicht gesetzt.');
-if (password.length < 10) warn('SITE_PASSWORD ist kürzer als 10 Zeichen – ein längeres Passwort schützt deutlich besser.');
+if (password.trim().length < 10) warn('SITE_PASSWORD ist kürzer als 10 Zeichen – ein längeres Passwort schützt deutlich besser.');
 
 await mkdir(path.join(OUT, 'data'), { recursive: true });
 await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt(data, password)));

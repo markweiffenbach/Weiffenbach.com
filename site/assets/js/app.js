@@ -29,9 +29,29 @@ function writePrefs(p) { try { localStorage.setItem(PREFS, JSON.stringify(p)); }
 // ======================= Zugang =======================
 let blob = null;
 
+const INSECURE_MSG = 'Der private Bereich braucht eine sichere Verbindung (https). Sie wird gerade eingerichtet – bitte später erneut versuchen.';
+
+// Ohne https sperrt der Browser die Verschlüsselungsfunktionen (crypto.subtle). Dann auf https wechseln,
+// sobald das Zertifikat erreichbar ist.
+async function ensureSecure() {
+  if (window.isSecureContext && window.crypto?.subtle) return true;
+  if (location.protocol === 'http:') {
+    const https = `https://${location.host}${location.pathname}${location.search}${location.hash}`;
+    try {
+      await fetch(`https://${location.host}/robots.txt`, { mode: 'no-cors', cache: 'no-store' });
+      location.replace(https);
+      return false;
+    } catch { /* Zertifikat noch nicht da */ }
+  }
+  $('#gate-msg').textContent = INSECURE_MSG;
+  return false;
+}
+
 async function init() {
   $('#year').textContent = now.getFullYear();
   applyTheme(readPrefs().theme);
+  $('#gate-form').addEventListener('submit', onLogin);
+  if (!(await ensureSecure())) return;
   try {
     const res = await fetch('data/data.enc.json', { cache: 'no-cache' });
     if (res.ok) blob = await res.json();
@@ -42,13 +62,13 @@ async function init() {
       try { start(await decrypt(blob, key)); return; } catch { forgetKey(); }
     }
   }
-  $('#gate-form').addEventListener('submit', onLogin);
 }
 
 async function onLogin(ev) {
   ev.preventDefault();
   const msg = $('#gate-msg'), btn = $('#gate-submit');
   msg.textContent = '';
+  if (!window.crypto?.subtle) { msg.textContent = INSECURE_MSG; return; }
   if (!blob) { msg.textContent = 'Der private Bereich ist gerade nicht verfügbar.'; return; }
   btn.disabled = true;
   btn.textContent = '…';
@@ -57,8 +77,9 @@ async function onLogin(ev) {
     const data = await decrypt(blob, key);
     await rememberKey(key, $('#remember').checked);
     start(data);
-  } catch {
-    msg.textContent = 'Das Passwort stimmt leider nicht.';
+  } catch (err) {
+    // Nur ein fehlgeschlagenes Entschlüsseln (OperationError) bedeutet ein falsches Passwort
+    msg.textContent = err?.name === 'OperationError' ? 'Das Passwort stimmt leider nicht.' : `Technischer Fehler: ${err?.message || err}`;
     const gate = $('#gate');
     gate.classList.remove('shake'); void gate.offsetWidth; gate.classList.add('shake');
     $('#pw').select();
