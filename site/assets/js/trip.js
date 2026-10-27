@@ -95,7 +95,8 @@ function render(c) {
   const stats = [
     [fmtDate(c.start) + ' – ' + fmtDate(c.end), 'Reisezeit'],
     [plural(c.nights, 'Nacht', 'Nächte'), `${plural(c.seaDays, 'Seetag', 'Seetage')}`],
-    [plural(c.portNames.length, 'Hafen', 'Häfen'), c.newPorts.length ? `${fmt.format(c.newPorts.length)} davon zum ersten Mal` : 'alle schon bekannt'],
+    [plural(c.portNames.length, 'Hafen', 'Häfen'), [c.newPorts.length ? `${fmt.format(c.newPorts.length)} davon zum ersten Mal` : 'alle schon bekannt',
+      c.missed.length && `${fmt.format(c.missed.length)} ausgefallen`].filter(Boolean).join(' · ')],
     [`${fmt.format(Math.round(c.nm))} sm`, `≈ ${fmt.format(Math.round(c.nm * 1.852))} km`],
   ];
 
@@ -126,7 +127,14 @@ function render(c) {
       return `<span class="tp-place">${s.type === 'Passage' ? '<span class="tp-pass">Passage</span> ' : ''}${esc(s.port)}
         <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(s.country)}</small>${isNew ? '<span class="badge">neu</span>' : ''}</span>`;
     }).join('');
-    const label = places || `<span class="tp-sea">${n === 0 ? 'Einschiffung' : n === c.nights ? 'Ausschiffung' : 'Auf See'}</span>`;
+    // Geplante, aber ausgefallene Häfen: durchgestrichen mit Grund
+    const missed = c.missed.filter((x) => x.d === d).map((x) => {
+      const meta = ctx.countries[x.country] || {};
+      return `<span class="tp-place tp-missed"><s>${esc(x.port)}</s>
+        <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(x.country)}</small><span class="badge warn">ausgefallen · ${esc(x.reason)}</span>
+        ${x.note ? `<span class="tp-missed-note">${x.sure ? '' : 'wahrscheinlich: '}${esc(x.note)}</span>` : ''}</span>`;
+    }).join('');
+    const label = (places || `<span class="tp-sea">${n === 0 ? 'Einschiffung' : n === c.nights ? 'Ausschiffung' : 'Auf See'}</span>`) + missed;
     const thumbs = dayPhotos.map(({ p, idx }) => `<button class="thumb" type="button" data-index="${idx}" aria-label="Foto vom ${fmtDate(p.d)} öffnen">
         <img data-photo="${p.t}" alt=""></button>`).join('');
     days.push(`<li class="tp-day${legs.length ? '' : ' sea'}">

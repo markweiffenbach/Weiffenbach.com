@@ -5,7 +5,7 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 
 - **Ohne Passwort** sehen Besucher nur eine neutrale Startseite.
 - **Mit Passwort** öffnet sich das Dashboard: Weltkarte mit Routen und Häfen, Kennzahlen, Diagramme,
-  Länder-Sammlung, Rekorde und Logbuch aller Reisen.
+  Länder-Sammlung, Rekorde, ausgefallene Häfen und Logbuch aller Reisen.
 - Die Reisedaten liegen **nur verschlüsselt** auf dem Server (AES-256-GCM, Schlüssel per PBKDF2 aus dem Passwort abgeleitet).
   Ohne Passwort lassen sie sich nicht lesen, auch nicht im Quelltext.
 
@@ -13,23 +13,28 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 
 ```
 Google Sheet ──(täglich / auf Knopfdruck)──► GitHub Action ──► verschlüsselte Daten ──► www.weiffenbach.com
- Kreuzfahrten + Stopps                        scripts/build-data.mjs                        site/
+ Kreuzfahrten, Stopps, …                      scripts/build-data.mjs                        site/
 ```
 
 Neue Reise eintragen: im Sheet eine Zeile in **Kreuzfahrten** und die Hafentage in **Stopps** ergänzen.
 Alles andere (Nächte, Seetage, Zuordnung der Häfen, Erstbesuche, Äquator- und Datumsgrenzen-Überquerungen,
 Auswertung, Koordinaten neuer Häfen) passiert automatisch. Für ein neues Schiff im Tab **Schiffe** eine Zeile
 mit Baujahr, BRZ, Länge und Passagieren ergänzen.
+
+Ist ein geplanter Hafen ausgefallen (z. B. wegen Sturm), gehört er **nicht** in **Stopps**, sondern in den Tab
+**Ausgefallen**: Datum laut Fahrplan, Hafen, Land, Grund (Auswahlliste) und optional Zeitpunkt, Status („bestätigt“ oder
+„wahrscheinlich“), Details und Quelle (Link). Die Homepage zeigt diese Häfen in einer eigenen Statistik, im Reiseverlauf
+durchgestrichen und auf der Karte gestrichelt. Steht ein Hafen versehentlich in beiden Tabs, meldet der Build das.
 Die Homepage übernimmt die Änderungen jede Nacht. Sofort geht es über GitHub → **Actions** →
 „Homepage aktualisieren“ → **Run workflow** (oder über das optionale Menü im Sheet, siehe unten).
 
 ## Einmalige Einrichtung
 
-### 1. Sheet veröffentlichen (nur die zwei Daten-Tabs)
+### 1. Sheet veröffentlichen (nur die Daten-Tabs)
 
 Im Sheet: **Datei → Freigeben → Im Web veröffentlichen**
-1. Unter „Veröffentlichte Inhalte und Einstellungen“ statt „Gesamtes Dokument“ nur **Kreuzfahrten**, **Stopps** und **Schiffe** auswählen
-   („Schiffe“ ist optional: ohne diesen Tab fehlen nur die Schiffsdaten).
+1. Unter „Veröffentlichte Inhalte und Einstellungen“ statt „Gesamtes Dokument“ nur **Kreuzfahrten**, **Stopps**, **Schiffe** und
+   **Ausgefallen** auswählen („Schiffe“ und „Ausgefallen“ sind optional: ohne sie fehlen nur die Schiffsdaten bzw. die ausgefallenen Häfen).
 2. Format: **Kommagetrennte Werte (.csv)** → **Veröffentlichen**.
 3. Den angezeigten Link kopieren (beginnt mit `https://docs.google.com/spreadsheets/d/e/2PACX-…`).
 

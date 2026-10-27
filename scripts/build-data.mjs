@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Liest die Tabs „Kreuzfahrten“ und „Stopps“ aus dem Google Sheet, prüft und ergänzt die Daten
+// Liest die Tabs „Kreuzfahrten“, „Stopps“, „Schiffe“ und „Ausgefallen“ aus dem Google Sheet, prüft und ergänzt die Daten
 // und schreibt sie AES-verschlüsselt nach <out>/data/data.enc.json.
 //
 // Umgebungsvariablen:
@@ -7,9 +7,11 @@
 //   SITE_PASSWORD      Passwort für die Homepage
 //   GID_KREUZFAHRTEN   optional, Standard 1100
 //   GID_STOPPS         optional, Standard 1200
+//   GID_SCHIFFE        optional, Standard 1500
+//   GID_AUSGEFALLEN    optional, Standard 1600
 // Optionen:
 //   --out <dir>        Zielordner (Standard: _site)
-//   --from-json <file> lokale Testdaten statt Sheet ({cruises, stops} im Seed-Format)
+//   --from-json <file> lokale Testdaten statt Sheet ({cruises, stops, ships?, missed?} im Seed-Format)
 //   --plain            zusätzlich unverschlüsselte data.json schreiben (nur lokal!)
 //   --photos-dir <dir> lokale Testfotos statt Google Drive (siehe scripts/photos.mjs)
 //   --photo-cache <d>  Cache-Ordner für verschlüsselte Fotos (Standard: .photo-cache)
@@ -136,6 +138,9 @@ async function loadSource() {
       stops: seed.stops.map((s, i) => ({ _row: i + 2, Datum: s.datum, Hafen: s.hafen, Land: s.land, Art: s.typ,
         Breite: String(s.lat), 'Länge': String(s.lng) })),
       ships: (seed.ships || []).map((x, i) => ({ _row: i + 2, ...x })),
+      missed: (seed.missed || []).map((m, i) => ({ _row: i + 2, Datum: m.datum, Hafen: m.hafen, Land: m.land, Grund: m.grund,
+        Zeitpunkt: m.zeitpunkt || '', Status: m.status || '', Details: m.details || '', Quelle: m.quelle || '',
+        Breite: m.lat != null ? String(m.lat) : '', 'Länge': m.lng != null ? String(m.lng) : '' })),
     };
   }
   const [k, s] = await Promise.all([
@@ -150,10 +155,19 @@ async function loadSource() {
   } catch (e) {
     warn(`Schiffsdaten nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
   }
+  // Ebenso optional: geplante, aber nicht angelaufene Häfen
+  let missed = [];
+  try {
+    missed = table(await fetchCSV(process.env.GID_AUSGEFALLEN || '1600', 'Ausgefallen'), ['Datum', 'Hafen', 'Land', 'Grund'], 'Ausgefallen',
+      ['Zeitpunkt', 'Status', 'Details', 'Quelle', 'Breite', 'Länge']);
+  } catch (e) {
+    warn(`Ausgefallene Häfen nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
+  }
   return {
     cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten'),
     stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps'),
     ships,
+    missed,
   };
 }
 
@@ -249,7 +263,33 @@ async function build() {
     if (src.ships.length && !ships[name]) warn(`Schiffe: „${name}“ fehlt im Tab „Schiffe“ – bitte Zeile ergänzen.`);
   }
 
-  return { generated: new Date().toISOString(), cruises, stops, countries, ships, warnings: warnings.length };
+  // Ausgefallene Häfen: zählen nicht als besucht, werden aber der geplanten Reise zugeordnet
+  const missed = [];
+  for (const r of src.missed) {
+    if (!r.Datum && !r.Hafen) continue;
+    const d = parseDate(r.Datum);
+    if (!d || !r.Hafen) { warn(`Ausgefallen, Zeile ${r._row}: Datum oder Hafen fehlt – Zeile übersprungen.`); continue; }
+    const c = findCruise(d);
+    if (!c) { warn(`Ausgefallen, Zeile ${r._row}: Datum liegt in keiner Reise – Zeile übersprungen.`); continue; }
+    if (stops.some((s) => s.cruise === c.id && s.port === r.Hafen)) {
+      warn(`Ausgefallen, Zeile ${r._row}: Der Hafen steht für dieselbe Reise auch in „Stopps“ – dort bitte entfernen, wenn er ausgefallen ist.`);
+    }
+    const country = r.Land || countryByPort.get(r.Hafen) || '';
+    let lat = parseNum(r.Breite), lng = parseNum(r['Länge']);
+    if (lat == null || lng == null) {
+      if (!coordsByPort.has(r.Hafen)) coordsByPort.set(r.Hafen, await geocode(r.Hafen, country));
+      ({ lat = null, lng = null } = coordsByPort.get(r.Hafen) || {});
+    }
+    const meta = countryTable[country];
+    if (meta) countries[country] = { a2: meta.a2, n: meta.n, k: meta.k };
+    else warn(`Ausgefallen, Zeile ${r._row}: Land „${country || '(leer)'}“ unbekannt.`);
+    missed.push({ d, port: r.Hafen, country, reason: r.Grund || 'unbekannt', when: r.Zeitpunkt || '',
+      sure: !/wahrscheinlich|unsicher|vermut/i.test(r.Status || ''), note: r.Details || '',
+      src: /^https?:\/\//i.test(r.Quelle || '') ? r.Quelle : '', lat, lng, cruise: c.id });
+  }
+  missed.sort((a, b) => a.d.localeCompare(b.d));
+
+  return { generated: new Date().toISOString(), cruises, stops, missed, countries, ships, warnings: warnings.length };
 }
 
 // ---------- Verschlüsselung ----------
@@ -285,4 +325,4 @@ await mkdir(path.join(OUT, 'data'), { recursive: true });
 await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt(data, key)));
 if (PLAIN) await writeFile(path.join(OUT, 'data', 'data.json'), JSON.stringify(data, null, 1));
 
-console.log(`✓ ${data.cruises.length} Reisen, ${data.stops.length} Stopps, ${data.photos.length} Fotos verschlüsselt geschrieben (${warnings.length} Hinweise).`);
+console.log(`✓ ${data.cruises.length} Reisen, ${data.stops.length} Stopps, ${data.missed.length} ausgefallene Häfen, ${data.photos.length} Fotos verschlüsselt geschrieben (${warnings.length} Hinweise).`);
