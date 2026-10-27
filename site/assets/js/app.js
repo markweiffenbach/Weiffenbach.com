@@ -453,14 +453,14 @@ function renderFlags(m) {
 
 function renderLog(m) {
   const q = state.search;
-  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, ...c.stops.map((s) => `${s.port} ${s.country}`)].join(' ').toLowerCase().includes(q));
+  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, c.captain || '', ...c.stops.map((s) => `${s.port} ${s.country}`)].join(' ').toLowerCase().includes(q));
   const LOG_LIMIT = 12;
   const shown = q || state.logAll ? list.slice().reverse() : list.slice().reverse().slice(0, LOG_LIMIT);
   const byYear = group(shown, (c) => year(c.start));
   $('#log').innerHTML = [...byYear].map(([y, trips]) => `<li class="log-year">${y}</li>` + trips.map((c) => `
     <li class="trip${state.selected === c.id ? ' active' : ''}" data-id="${c.id}" tabindex="0" role="button" aria-label="${esc(c.ship)}, ${esc(c.route)} auf der Karte zeigen">
       <span class="trip-date">${fmtDate(c.start, { day: '2-digit', month: '2-digit' })} – ${fmtDate(c.end, { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
+      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}</span><br><span class="trip-route">${esc(c.route)}${c.captain ? ` · Kapitän ${esc(c.captain)}` : ''}</span></span>
       <span class="trip-meta"><b>${c.nights}</b> Nächte<br>${fmt.format(Math.round(c.nm))} sm</span>
       <span class="trip-ports">${c.portNames.map(esc).join(' · ') || '–'}</span>
     </li>`).join('')).join('') || '<li class="empty">Keine passende Reise.</li>';

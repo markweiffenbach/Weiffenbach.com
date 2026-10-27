@@ -47,7 +47,7 @@ function parseCSV(text) {
   return rows;
 }
 
-function table(rows, required, tab) {
+function table(rows, required, tab, optional = []) {
   const head = rows[0].map((h) => h.trim());
   const idx = {};
   for (const name of required) {
@@ -55,6 +55,7 @@ function table(rows, required, tab) {
     if (i < 0) throw new Error(`Spalte „${name}“ fehlt im Tab „${tab}“ (gefunden: ${head.join(', ')})`);
     idx[name] = i;
   }
+  for (const name of optional) if (head.includes(name)) idx[name] = head.indexOf(name);
   return rows.slice(1).map((r, n) => {
     const o = { _row: n + 2 };
     for (const [k, i] of Object.entries(idx)) o[k] = (r[i] ?? '').trim();
@@ -127,7 +128,7 @@ async function loadSource() {
     const seed = JSON.parse(await readFile(FROM_JSON, 'utf8'));
     return {
       cruises: seed.cruises.map((c, i) => ({ _row: i + 2, Start: c.start, Ende: c.ende, Schiff: c.schiff, Reederei: c.reederei,
-        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '' })),
+        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '', 'Kapitän': c.kapitaen || '' })),
       stops: seed.stops.map((s, i) => ({ _row: i + 2, Datum: s.datum, Hafen: s.hafen, Land: s.land, Art: s.typ,
         Breite: String(s.lat), 'Länge': String(s.lng) })),
     };
@@ -137,7 +138,7 @@ async function loadSource() {
     fetchCSV(process.env.GID_STOPPS || '1200', 'Stopps'),
   ]);
   return {
-    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten'),
+    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten', ['Kapitän']),
     stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps'),
   };
 }
@@ -167,7 +168,7 @@ async function build() {
     if (!start || !end) { warn(`Kreuzfahrten, Zeile ${r._row}: Start oder Ende ist kein gültiges Datum – Zeile übersprungen.`); continue; }
     if (end < start) { warn(`Kreuzfahrten, Zeile ${r._row}: Ende liegt vor Start – Zeile übersprungen.`); continue; }
     cruises.push({ start, end, nights: days(start, end), ship: r.Schiff || 'Unbekannt', line: r.Reederei || 'Unbekannt',
-      route: r.Route || '', region: r.Fahrtgebiet || 'Sonstige', note: r.Bemerkung || '' });
+      route: r.Route || '', region: r.Fahrtgebiet || 'Sonstige', note: r.Bemerkung || '', captain: r['Kapitän'] || '' });
   }
   cruises.sort((a, b) => a.start.localeCompare(b.start));
   cruises.forEach((c, i) => { c.id = i; });

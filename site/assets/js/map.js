@@ -197,7 +197,7 @@ export class TripMap {
     const c = this.model.cruises.find((x) => x.id === id);
     if (!c) { focus.hidden = true; return; }
     focus.hidden = false;
-    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm</span><br><button class="text-btn" type="button">Alle Reisen zeigen</button>`;
+    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm${c.captain ? ` · Kapitän ${esc(c.captain)}` : ''}</span><br><button class="text-btn" type="button">Alle Reisen zeigen</button>`;
     focus.querySelector('button').addEventListener('click', () => this.onSelectCruise(null));
     if (fit && c.legs.length) {
       const pts = unwrap(c.legs.map((s) => [s.lat, s.lng]));
