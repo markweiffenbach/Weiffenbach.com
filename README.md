@@ -73,6 +73,34 @@ Die A-Einträge sorgen dafür, dass auch `weiffenbach.com` ohne „www“ funkti
 
 Nach dem Merge auf `main` läuft der Workflow automatisch. Danach täglich um 04:17 UTC.
 
+## Fotos in der Reise-Detailansicht
+
+Ein Klick auf eine Reise im Logbuch öffnet die Detailansicht mit dem Verlauf Tag für Tag. Fotos erscheinen dort
+automatisch beim passenden Hafentag: Zugeordnet wird über das **Aufnahmedatum** (EXIF), ersatzweise über ein Datum im
+Dateinamen (z. B. `IMG_20250324_101500.jpg`). Die Bilder werden beim Bauen verkleinert und mit dem Passwort
+verschlüsselt; ohne Passwort sind sie nicht zu sehen.
+
+**Fotos hinzufügen:** Lieblingsfotos in den Drive-Ordner **„Schiffsurlaube Fotos“** legen (neben dem Sheet).
+Unterordner sind erlaubt, z. B. einer pro Reise – die Ordnerstruktur spielt für die Zuordnung keine Rolle.
+Aus Google Fotos: Fotos auswählen → Herunterladen → im Drive-Ordner hochladen (am Handy: Teilen → „In Drive speichern“).
+Fotos löschen = Datei aus dem Ordner entfernen.
+
+**Einmalige Einrichtung (ca. 10 Minuten)** – GitHub braucht einen eigenen, nur lesenden Zugang zu diesem einen Ordner:
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → oben „Projekt auswählen“ → **Neues Projekt** (z. B. `weiffenbach-fotos`).
+2. **APIs & Dienste → Bibliothek** → „Google Drive API“ → **Aktivieren**.
+3. **IAM & Verwaltung → Dienstkonten → Dienstkonto erstellen** (Name z. B. `homepage-fotos`, keine Rollen nötig).
+4. Das Dienstkonto öffnen → **Schlüssel → Schlüssel hinzufügen → Neuen Schlüssel erstellen → JSON**. Eine Datei wird heruntergeladen.
+5. In Google Drive den Ordner „Schiffsurlaube Fotos“ → **Teilen** → die E-Mail-Adresse des Dienstkontos
+   (endet auf `…iam.gserviceaccount.com`) als **Betrachter** hinzufügen.
+6. GitHub → Settings → Secrets and variables → Actions → zwei neue Secrets:
+   - `GDRIVE_SERVICE_ACCOUNT`: der **komplette Inhalt** der JSON-Datei aus Schritt 4
+   - `PHOTO_FOLDER_ID`: die ID des Ordners (der Teil der Ordner-Adresse nach `/folders/`)
+7. Die JSON-Datei danach auf dem Computer löschen.
+
+Ohne diese Secrets läuft alles wie bisher, nur ohne Fotos. Bereits verarbeitete Fotos werden zwischengespeichert,
+damit die nächtlichen Läufe schnell bleiben.
+
 ## Optional: Menü „Homepage → Jetzt aktualisieren“ im Sheet
 
 Siehe Anleitung oben in [`tools/apps-script.gs`](tools/apps-script.gs): Code in **Erweiterungen → Apps Script**
@@ -86,6 +114,7 @@ einfügen und einen GitHub-Token als Skripteigenschaft hinterlegen.
 | `site/assets/vendor/` | Leaflet 1.9.4 und topojson-client 3.1.0 (lokal, kein fremdes CDN) |
 | `site/assets/geo/` | Ländergrenzen aus Natural Earth (world-atlas 2.0.2) |
 | `scripts/build-data.mjs` | liest das Sheet, prüft die Daten, ergänzt Koordinaten, verschlüsselt |
+| `scripts/photos.mjs` | holt Fotos aus Google Drive, ordnet sie den Stopps zu, verschlüsselt sie |
 | `scripts/countries.de.json` | deutsche Ländernamen → ISO-Code und Kontinent |
 | `.github/workflows/deploy.yml` | Build und Veröffentlichung |
 

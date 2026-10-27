@@ -166,7 +166,7 @@
 
       <article class="card span-2">
         <div class="card-head">
-          <div><h2>Logbuch</h2><p class="card-sub">Alle Reisen – zum Anzeigen auf der Karte anklicken · <b>fett</b> = erstmals besuchter Hafen</p></div>
+          <div><h2>Logbuch</h2><p class="card-sub">Reise anklicken für Details und Fotos · <b>fett</b> = erstmals besuchter Hafen</p></div>
           <input type="search" id="log-search" class="search" placeholder="Suchen: Schiff, Hafen, Land …" aria-label="Logbuch durchsuchen">
         </div>
         <ol class="log" id="log"></ol>
@@ -178,6 +178,19 @@
   <footer class="wrap foot">
     <p>Daten aus dem Google Sheet „Schiffsurlaube“ · Seemeilen als Luftlinie zwischen den Häfen · Kartengrundlage: Natural Earth</p>
   </footer>
+</div>
+
+<div class="panel" id="trip-panel" hidden>
+  <div class="panel-sheet" role="dialog" aria-modal="true" aria-labelledby="tp-title">
+    <div class="panel-body"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Foto">
+  <button class="lb-btn lb-close" type="button" data-lb="close" aria-label="Schließen">✕</button>
+  <button class="lb-btn lb-prev" type="button" data-lb="prev" aria-label="Vorheriges Foto">‹</button>
+  <figure><img alt=""><figcaption class="lb-caption"></figcaption></figure>
+  <button class="lb-btn lb-next" type="button" data-lb="next" aria-label="Nächstes Foto">›</button>
 </div>
 
 <div class="tooltip" id="tooltip" role="tooltip" hidden></div>

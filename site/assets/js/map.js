@@ -61,8 +61,9 @@ function unwrapGeometry(geom) {
 }
 
 export class TripMap {
-  constructor(elId, { onSelectCruise }) {
+  constructor(elId, { onSelectCruise, onOpenTrip }) {
     this.onSelectCruise = onSelectCruise;
+    this.onOpenTrip = onOpenTrip;
     this.map = L.map(elId, {
       preferCanvas: true, zoomSnap: 0.25, minZoom: 1.25, maxZoom: 9, worldCopyJump: false,
       maxBounds: [[-75, -400], [85, 400]], maxBoundsViscosity: 0.8, attributionControl: true,
@@ -207,8 +208,9 @@ export class TripMap {
       else { label(first, `Start: <b>${esc(first.port)}</b>`, 'top'); label(last, `Ziel: <b>${esc(last.port)}</b>`, 'bottom'); }
     }
     focus.hidden = false;
-    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm</span><br><button class="text-btn" type="button">Alle Reisen zeigen</button>`;
-    focus.querySelector('button').addEventListener('click', () => this.onSelectCruise(null));
+    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm</span><br><button class="text-btn" type="button" data-f="details">Details &amp; Fotos</button> <button class="text-btn" type="button" data-f="all">Alle Reisen zeigen</button>`;
+    focus.querySelector('[data-f="all"]').addEventListener('click', () => this.onSelectCruise(null));
+    focus.querySelector('[data-f="details"]').addEventListener('click', () => this.onOpenTrip(c.id));
     if (fit && c.legs.length) {
       const pts = unwrap(c.legs.map((s) => [s.lat, s.lng]));
       this.map.flyToBounds(pts, { padding: [48, 48], maxZoom: 6, duration: 0.8 });

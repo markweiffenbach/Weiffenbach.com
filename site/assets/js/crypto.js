@@ -21,6 +21,12 @@ export async function decrypt(blob, key) {
   return JSON.parse(new TextDecoder().decode(plain));
 }
 
+// Fotos: die ersten 12 Byte sind der IV, danach folgt der verschlüsselte Inhalt
+export async function decryptBytes(buf, key) {
+  const bytes = new Uint8Array(buf);
+  return crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12));
+}
+
 export async function rememberKey(key, persistent) {
   const raw = toB64(await crypto.subtle.exportKey('raw', key));
   try {
