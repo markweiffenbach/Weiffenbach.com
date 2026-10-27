@@ -128,18 +128,28 @@ async function loadSource() {
     const seed = JSON.parse(await readFile(FROM_JSON, 'utf8'));
     return {
       cruises: seed.cruises.map((c, i) => ({ _row: i + 2, Start: c.start, Ende: c.ende, Schiff: c.schiff, Reederei: c.reederei,
-        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '', 'Kapitän': c.kapitaen || '' })),
+        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '' })),
       stops: seed.stops.map((s, i) => ({ _row: i + 2, Datum: s.datum, Hafen: s.hafen, Land: s.land, Art: s.typ,
         Breite: String(s.lat), 'Länge': String(s.lng) })),
+      ships: (seed.ships || []).map((x, i) => ({ _row: i + 2, ...x })),
     };
   }
   const [k, s] = await Promise.all([
     fetchCSV(process.env.GID_KREUZFAHRTEN || '1100', 'Kreuzfahrten'),
     fetchCSV(process.env.GID_STOPPS || '1200', 'Stopps'),
   ]);
+  // Schiffsdaten sind optional: fehlt der Tab in der Veröffentlichung, läuft der Build ohne sie
+  let ships = [];
+  try {
+    ships = table(await fetchCSV(process.env.GID_SCHIFFE || '1500', 'Schiffe'),
+      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis']);
+  } catch (e) {
+    warn(`Schiffsdaten nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
+  }
   return {
-    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten', ['Kapitän']),
+    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten'),
     stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps'),
+    ships,
   };
 }
 
@@ -168,7 +178,7 @@ async function build() {
     if (!start || !end) { warn(`Kreuzfahrten, Zeile ${r._row}: Start oder Ende ist kein gültiges Datum – Zeile übersprungen.`); continue; }
     if (end < start) { warn(`Kreuzfahrten, Zeile ${r._row}: Ende liegt vor Start – Zeile übersprungen.`); continue; }
     cruises.push({ start, end, nights: days(start, end), ship: r.Schiff || 'Unbekannt', line: r.Reederei || 'Unbekannt',
-      route: r.Route || '', region: r.Fahrtgebiet || 'Sonstige', note: r.Bemerkung || '', captain: r['Kapitän'] || '' });
+      route: r.Route || '', region: r.Fahrtgebiet || 'Sonstige', note: r.Bemerkung || '' });
   }
   cruises.sort((a, b) => a.start.localeCompare(b.start));
   cruises.forEach((c, i) => { c.id = i; });
@@ -223,7 +233,19 @@ async function build() {
       cruise: c && art !== 'Landaufenthalt' ? c.id : null };
   });
 
-  return { generated: new Date().toISOString(), cruises, stops, countries, warnings: warnings.length };
+  const ships = {};
+  for (const r of src.ships) {
+    if (!r.Schiff) continue;
+    // Ganzzahlen kommen im deutschen Sheet mit Tausenderpunkt („42.289“)
+    const int = (v) => { const n = parseInt(String(v ?? '').replace(/[^\d-]/g, ''), 10); return Number.isFinite(n) ? n : null; };
+    ships[r.Schiff] = { built: int(r.Indienststellung), gt: int(r.BRZ), length: parseNum(r['Länge (m)']),
+      pax: int(r.Passagiere), note: r.Hinweis || '' };
+  }
+  for (const name of new Set(cruises.map((c) => c.ship))) {
+    if (src.ships.length && !ships[name]) warn(`Schiffe: „${name}“ fehlt im Tab „Schiffe“ – bitte Zeile ergänzen.`);
+  }
+
+  return { generated: new Date().toISOString(), cruises, stops, countries, ships, warnings: warnings.length };
 }
 
 // ---------- Verschlüsselung ----------

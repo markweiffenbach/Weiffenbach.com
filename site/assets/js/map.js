@@ -6,7 +6,7 @@ const css = (name) => getComputedStyle(document.documentElement).getPropertyValu
 const fmtDate = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 // Großkreis-Zwischenpunkte, damit lange Strecken als Bogen erscheinen
-function greatCircle(a, b) {
+export function greatCircle(a, b) {
   const rad = Math.PI / 180;
   const [la1, lo1, la2, lo2] = [a[0] * rad, a[1] * rad, b[0] * rad, b[1] * rad];
   const d = 2 * Math.asin(Math.sqrt(Math.sin((la2 - la1) / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin((lo2 - lo1) / 2) ** 2));
@@ -25,7 +25,7 @@ function greatCircle(a, b) {
 }
 
 // Längengrade ohne Sprung über die Datumsgrenze
-function unwrap(pts) {
+export function unwrap(pts) {
   const out = [pts[0].slice()];
   for (let i = 1; i < pts.length; i++) {
     let lng = pts[i][1];
@@ -207,7 +207,7 @@ export class TripMap {
       else { label(first, `Start: <b>${esc(first.port)}</b>`, 'top'); label(last, `Ziel: <b>${esc(last.port)}</b>`, 'bottom'); }
     }
     focus.hidden = false;
-    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm${c.captain ? ` · Kapitän ${esc(c.captain)}` : ''}</span><br><button class="text-btn" type="button">Alle Reisen zeigen</button>`;
+    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm</span><br><button class="text-btn" type="button">Alle Reisen zeigen</button>`;
     focus.querySelector('button').addEventListener('click', () => this.onSelectCruise(null));
     if (fit && c.legs.length) {
       const pts = unwrap(c.legs.map((s) => [s.lat, s.lng]));
