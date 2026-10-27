@@ -94,18 +94,30 @@ function parseNum(s) {
 const days = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 // ---------- Quelle ----------
+// Akzeptiert jeden Google-Sheets-Link: „Im Web veröffentlichen“ (…/d/e/2PACX…/pub, pubhtml, pub?output=csv)
+// oder den normalen Link (…/d/<id>/edit, dann muss „Jeder mit dem Link“ lesen dürfen).
+function csvUrl(link, gid) {
+  const u = new URL(link.trim());
+  if (u.hostname !== 'docs.google.com') return Object.assign(u, { search: `?gid=${gid}&single=true&output=csv` });
+  const pub = u.pathname.match(/\/spreadsheets\/d\/e\/([^/]+)/);
+  if (pub) return new URL(`https://docs.google.com/spreadsheets/d/e/${pub[1]}/pub?gid=${gid}&single=true&output=csv`);
+  const id = u.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
+  if (id) return new URL(`https://docs.google.com/spreadsheets/d/${id[1]}/export?format=csv&gid=${gid}`);
+  throw new Error('SHEET_PUBLISH_URL ist kein Google-Sheets-Link.');
+}
+
 async function fetchCSV(gid, tab) {
-  const base = process.env.SHEET_PUBLISH_URL;
-  if (!base) throw new Error('SHEET_PUBLISH_URL ist nicht gesetzt (GitHub → Settings → Secrets and variables → Actions).');
-  const u = new URL(base);
-  u.searchParams.set('gid', gid);
-  u.searchParams.set('single', 'true');
-  u.searchParams.set('output', 'csv');
+  const link = process.env.SHEET_PUBLISH_URL;
+  if (!link) throw new Error('SHEET_PUBLISH_URL ist nicht gesetzt (GitHub → Settings → Secrets and variables → Actions).');
+  const u = csvUrl(link, gid);
+  const kind = u.pathname.includes('/d/e/') ? 'veröffentlichter Link' : 'Freigabe-Link';
   const res = await fetch(u, { redirect: 'follow' });
-  if (!res.ok) throw new Error(`Tab „${tab}“: Abruf fehlgeschlagen (HTTP ${res.status}). Ist der Tab im Web veröffentlicht?`);
+  if (!res.ok) throw new Error(`Tab „${tab}“ (${kind}): Abruf fehlgeschlagen (HTTP ${res.status}). Ist der Tab im Web veröffentlicht?`);
   const text = await res.text();
   if (text.trimStart().startsWith('<')) {
-    throw new Error(`Tab „${tab}“ lieferte HTML statt CSV. Bitte im Sheet unter „Datei → Freigeben → Im Web veröffentlichen“ prüfen, dass „${tab}“ ausgewählt und als CSV veröffentlicht ist.`);
+    const title = (text.match(/<title>([^<]*)<\/title>/i) || [])[1] || '?';
+    throw new Error(`Tab „${tab}“ (${kind}) lieferte eine Webseite statt CSV (Seitentitel: „${title.trim()}“). `
+      + `Bitte im Sheet unter „Datei → Freigeben → Im Web veröffentlichen“ prüfen, dass „${tab}“ ausgewählt und veröffentlicht ist.`);
   }
   return parseCSV(text);
 }
