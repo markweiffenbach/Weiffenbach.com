@@ -1,0 +1,58 @@
+name: Fotobericht (einmalig)
+
+on:
+  push:
+    branches: [claude/schiffsurlaube-dashboard-db0j50]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/cache/restore@v4
+        with:
+          path: .photo-cache
+          key: photos-none
+          restore-keys: photos-
+      - name: Nicht zugeordnete Fotos ermitteln (Ergebnis nur verschlüsselt)
+        env:
+          SHEET_PUBLISH_URL: ${{ secrets.SHEET_PUBLISH_URL }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+          PHOTO_FOLDER_ID: ${{ secrets.PHOTO_FOLDER_ID }}
+          PHOTO_REPORT: ${{ runner.temp }}/report.json
+        run: |
+          cat > "$RUNNER_TEMP/cert.pem" <<'PEM'
+          -----BEGIN CERTIFICATE-----
+          MIIEDzCCAnegAwIBAgIUOPm+p+LI934nvuA3poUzh31xNmgwDQYJKoZIhvcNAQEL
+          BQAwFzEVMBMGA1UEAwwMcGhvdG8tcmVwb3J0MB4XDTI2MTAyNzE4MjY1N1oXDTI2
+          MTAyOTE4MjY1N1owFzEVMBMGA1UEAwwMcGhvdG8tcmVwb3J0MIIBojANBgkqhkiG
+          9w0BAQEFAAOCAY8AMIIBigKCAYEAvM9PM9rJ8Lgmek6FlRdfx1EdRb3Wv9t56c01
+          4Jf4u5JTwiUZKWIGCCr/lIKM3VFinvc/A4f6+ENjzRgbL660PqPGMVW92k644doc
+          0vvm6eHoev5gIjuomwh7NxQ9qoLIW/6AwJa/AtNMJLc/umnaYv4Z0zVB8yInsA7p
+          ET4L3YCwFAyczwgP9S4G1rrw5Q8wNuPekEioUSwICr542wKcJkQ/foaum67YmUlV
+          bXMh/TcP8mWL08jMDVIzdX3rPf8WJv0AMnivK78WFGLlUy/D1tt4zlWd1i7/t7JA
+          uuRKk2e/FSkPPFum/qGIooiQ1ccPeGlCJPzehBGpzDueyLvgpLGnWdCG/YJbFjHi
+          fc26eYkGeGAuUkQRIjT+upwhL0TG9BtHu7A2yWhOfHNjA/FZSdHD/2LjRqwWQExf
+          3hV+04aXDjMkXbiYj6h8hQw6flBns20BWuXk7XV+6RPpnEHwQn7rybW+/2I9b1QP
+          ZuZeYxrAmbItOe2f/UTe793GnoLlAgMBAAGjUzBRMB0GA1UdDgQWBBTqSddXWGBL
+          JJgUS8c0IjkNNYrUyDAfBgNVHSMEGDAWgBTqSddXWGBLJJgUS8c0IjkNNYrUyDAP
+          BgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBgQBh42BIuhmkfnDFB3qc
+          R4PtGQKUTMai5yl/7oM+8LX9umjtpK2bUHuxUj+THjY+Y1shf0nzuxgtI17VX2Lj
+          GGBBRu1f5XkzBTRxw4KhUkw7EnK0APscvob/J7/hyV4A5endAMc+AQJ2ZiQCEIyt
+          dzVI6LZAR5Zi5woZzOaFO1A7jSDuuQJ4lmFLt8pRNtyiw4/pz+tsUG7qo+H/7vTo
+          6qgXEp2OCLTnXsIEHX4SIry0jn1LBy+FpyB8PeWkfttyr6a6RDhBE7kvu53x7P5t
+          c3FwQ82dcSjmMc+P4Vl+olDp6H/yYswgX9CICKWu8TkEYVnJT4SvJKhn7WTWzMx8
+          wevZqqvEG/DWP9QkzLTCpPqQ13hX3gT9TTvlUylKq5MH2fDAp5xx0+4fsQRbqG6r
+          pQdwy+ZpuRYfPf0QcCMALmWXcllmXBd6UoF6RaZhyrmNZUaLlB/IpqgODRD2QEqU
+          uDkqThwrqlk5V5g49Qm1kaTQJp9F36/HvVWTNwr1bAcU0/U=
+          -----END CERTIFICATE-----
+          PEM
+          node scripts/build-data.mjs --out "$RUNNER_TEMP/site" > /dev/null
+          openssl cms -encrypt -binary -aes256 -in "$PHOTO_REPORT" -outform PEM "$RUNNER_TEMP/cert.pem"
