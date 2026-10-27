@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weiffenbach</title>
+  <meta name="description" content="Weiffenbach – private Homepage.">
+  <meta name="theme-color" content="#0b1d30">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1d30'/%3E%3Cpath d='M12 38c5 0 5-4 10-4s5 4 10 4 5-4 10-4 5 4 10 4' fill='none' stroke='%237fb2ec' stroke-width='4' stroke-linecap='round'/%3E%3Ctext x='32' y='30' font-family='system-ui,sans-serif' font-size='22' font-weight='600' fill='%23fff' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+
+<!-- Öffentliche Startseite mit Passwortfeld -->
+<main id="gate" class="gate" aria-labelledby="gate-title">
+  <div class="gate-sky" aria-hidden="true"></div>
+  <div class="gate-inner">
+    <p class="gate-kicker">Herzlich willkommen</p>
+    <h1 id="gate-title" class="gate-title">Weiffenbach</h1>
+    <p class="gate-lead">Schön, dass Sie vorbeischauen.</p>
+
+    <form id="gate-form" class="gate-form" autocomplete="on">
+      <label for="pw" class="gate-label">Privater Bereich</label>
+      <div class="gate-row">
+        <input id="pw" name="password" type="password" autocomplete="current-password" placeholder="Passwort" required>
+        <button type="submit" id="gate-submit">Öffnen</button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="remember"> Auf diesem Gerät angemeldet bleiben</label>
+      <p id="gate-msg" class="gate-msg" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+  <svg class="gate-waves" viewBox="0 0 1440 220" preserveAspectRatio="none" aria-hidden="true">
+    <path class="w1" d="M0 120 C 240 80 480 160 720 120 S 1200 80 1440 120 V220 H0Z"/>
+    <path class="w2" d="M0 150 C 260 120 520 190 780 150 S 1240 120 1440 150 V220 H0Z"/>
+    <path class="w3" d="M0 180 C 300 160 600 210 900 180 S 1300 165 1440 180 V220 H0Z"/>
+  </svg>
+  <footer class="gate-foot">© <span id="year"></span> Weiffenbach</footer>
+</main>
+
+<!-- Dashboard (wird erst nach dem Entschlüsseln gefüllt) -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="wrap top-bar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M3 15c2 0 2-1.6 4.5-1.6S9.5 15 12 15s2-1.6 4.5-1.6S18.5 15 21 15M5 11l1.2-4h11.6L19 11M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <div>
+          <p class="brand-title">Schiffsurlaube</p>
+          <p class="brand-sub">Weiffenbach · auf See seit <span data-bind="firstYear"></span></p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="stamp">Stand <span data-bind="generated"></span></span>
+        <button class="icon-btn" id="theme-btn" type="button" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel">
+          <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="text-btn" id="logout" type="button">Abmelden</button>
+      </div>
+    </div>
+
+    <div class="wrap hero">
+      <div class="hero-main">
+        <p class="hero-label">Nächte an Bord</p>
+        <p class="hero-figure"><span data-bind="nights"></span></p>
+        <p class="hero-sub" data-bind="nightsHuman"></p>
+      </div>
+      <aside class="next" id="next-card" aria-live="polite"></aside>
+    </div>
+  </header>
+
+  <main class="wrap content">
+    <section class="kpis" id="kpis" aria-label="Kennzahlen"></section>
+
+    <section class="filters" id="filters" aria-label="Filter">
+      <div class="filter">
+        <label for="f-from">Von</label>
+        <select id="f-from"></select>
+      </div>
+      <div class="filter">
+        <label for="f-to">Bis</label>
+        <select id="f-to"></select>
+      </div>
+      <div class="filter">
+        <label for="f-line">Reederei</label>
+        <select id="f-line"></select>
+      </div>
+      <div class="filter">
+        <label for="f-region">Fahrtgebiet</label>
+        <select id="f-region"></select>
+      </div>
+      <label class="switch"><input type="checkbox" id="f-planned"><span>Geplante Reisen einbeziehen</span></label>
+      <button type="button" class="text-btn reset" id="f-reset">Zurücksetzen</button>
+    </section>
+
+    <section class="card card-map">
+      <div class="card-head">
+        <div>
+          <h2>Weltkarte</h2>
+          <p class="card-sub" id="map-sub"></p>
+        </div>
+        <div class="chips" role="group" aria-label="Kartenebenen">
+          <button type="button" class="chip on" data-layer="routes" aria-pressed="true">Routen</button>
+          <button type="button" class="chip on" data-layer="ports" aria-pressed="true">Häfen</button>
+          <button type="button" class="chip on" data-layer="countries" aria-pressed="true">Länder</button>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <div id="map" role="region" aria-label="Weltkarte der besuchten Häfen und Routen"></div>
+        <div class="map-focus" id="map-focus" hidden></div>
+      </div>
+      <div class="legend" id="map-legend"></div>
+    </section>
+
+    <section class="grid">
+      <article class="card span-2" data-chart="years">
+        <div class="card-head"><div><h2>Nächte an Bord pro Jahr</h2><p class="card-sub" id="years-sub"></p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-years"></div>
+      </article>
+
+      <article class="card" data-chart="lines">
+        <div class="card-head"><div><h2>Reedereien</h2><p class="card-sub">Nächte an Bord</p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-lines"></div>
+      </article>
+
+      <article class="card" data-chart="regions">
+        <div class="card-head"><div><h2>Fahrtgebiete</h2><p class="card-sub">Nächte an Bord</p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-regions"></div>
+      </article>
+
+      <article class="card" data-chart="ports">
+        <div class="card-head"><div><h2>Lieblingshäfen</h2><p class="card-sub">Anzahl Besuche</p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-ports"></div>
+      </article>
+
+      <article class="card" data-chart="countries">
+        <div class="card-head"><div><h2>Länder</h2><p class="card-sub">Hafenbesuche je Land</p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-countries"></div>
+      </article>
+
+      <article class="card" data-chart="months">
+        <div class="card-head"><div><h2>Reisezeit</h2><p class="card-sub">Nächte an Bord je Kalendermonat</p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-months"></div>
+      </article>
+
+      <article class="card" data-chart="continents">
+        <div class="card-head"><div><h2>Kontinente</h2><p class="card-sub">Besuchte Länder je Kontinent</p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-continents"></div>
+      </article>
+
+      <article class="card span-2">
+        <div class="card-head"><div><h2>Rekorde &amp; Fakten</h2><p class="card-sub">Für den aktuellen Filter</p></div></div>
+        <div class="facts" id="facts"></div>
+      </article>
+
+      <article class="card span-2">
+        <div class="card-head"><div><h2>Länder-Sammlung</h2><p class="card-sub" id="flags-sub"></p></div></div>
+        <div class="flags" id="flags"></div>
+      </article>
+
+      <article class="card span-2" data-chart="ships">
+        <div class="card-head"><div><h2>Flotte</h2><p class="card-sub">Alle Schiffe, nach Nächten an Bord</p></div><button class="text-btn tbl-btn" type="button">Tabelle</button></div>
+        <div class="chart" id="c-ships"></div>
+      </article>
+
+      <article class="card span-2">
+        <div class="card-head">
+          <div><h2>Logbuch</h2><p class="card-sub">Alle Reisen – zum Anzeigen auf der Karte anklicken</p></div>
+          <input type="search" id="log-search" class="search" placeholder="Suchen: Schiff, Hafen, Land …" aria-label="Logbuch durchsuchen">
+        </div>
+        <ol class="log" id="log"></ol>
+        <button type="button" class="text-btn more" id="log-more" hidden></button>
+      </article>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Daten aus dem Google Sheet „Schiffsurlaube“ · Seemeilen als Luftlinie zwischen den Häfen · Kartengrundlage: Natural Earth</p>
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+<script src="assets/vendor/leaflet/leaflet.js"></script>
+<script src="assets/vendor/topojson-client.min.js"></script>
+<script type="module" src="assets/js/app.js"></script>
+</body>
+</html>

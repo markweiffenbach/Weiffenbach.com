@@ -1,0 +1,49 @@
+name: Homepage aktualisieren
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * *'   # täglich 04:17 UTC: neue Einträge im Sheet übernehmen
+  workflow_dispatch:        # Knopf „Run workflow“ unter Actions
+  repository_dispatch:
+    types: [sheet-updated]  # optional: Menü im Google Sheet (tools/apps-script.gs)
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Seite zusammenstellen
+        run: cp -r site _site
+      - name: Daten aus dem Sheet holen und verschlüsseln
+        env:
+          SHEET_PUBLISH_URL: ${{ secrets.SHEET_PUBLISH_URL }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: node scripts/build-data.mjs --out _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
