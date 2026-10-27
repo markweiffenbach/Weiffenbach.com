@@ -27,7 +27,12 @@ jobs:
         with:
           node-version: 22
       - name: Seite zusammenstellen
-        run: cp -r site _site
+        # Versionsnummer an CSS/JS hängen, damit Browser nach einem Update nicht die alte Fassung aus dem Cache nehmen
+        run: |
+          cp -r site _site
+          V=${GITHUB_SHA::8}
+          sed -i -E "s#(assets/(css|js)/[a-z]+\.(css|js))\"#\1?v=$V\"#g" _site/index.html
+          sed -i -E "s#from '\./([a-z]+)\.js'#from './\1.js?v=$V'#g" _site/assets/js/*.js
       - name: Daten aus dem Sheet holen und verschlüsseln
         env:
           SHEET_PUBLISH_URL: ${{ secrets.SHEET_PUBLISH_URL }}
