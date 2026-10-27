@@ -94,7 +94,7 @@ function parseNum(s) {
 const days = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 // ---------- Quelle ----------
-async function fetchCSV(gid) {
+async function fetchCSV(gid, tab) {
   const base = process.env.SHEET_PUBLISH_URL;
   if (!base) throw new Error('SHEET_PUBLISH_URL ist nicht gesetzt (GitHub → Settings → Secrets and variables → Actions).');
   const u = new URL(base);
@@ -102,9 +102,11 @@ async function fetchCSV(gid) {
   u.searchParams.set('single', 'true');
   u.searchParams.set('output', 'csv');
   const res = await fetch(u, { redirect: 'follow' });
-  if (!res.ok) throw new Error(`Sheet-Abruf fehlgeschlagen (HTTP ${res.status}). Ist das Sheet im Web veröffentlicht?`);
+  if (!res.ok) throw new Error(`Tab „${tab}“: Abruf fehlgeschlagen (HTTP ${res.status}). Ist der Tab im Web veröffentlicht?`);
   const text = await res.text();
-  if (text.trimStart().startsWith('<')) throw new Error('Sheet lieferte HTML statt CSV – bitte „Im Web veröffentlichen“ als CSV prüfen.');
+  if (text.trimStart().startsWith('<')) {
+    throw new Error(`Tab „${tab}“ lieferte HTML statt CSV. Bitte im Sheet unter „Datei → Freigeben → Im Web veröffentlichen“ prüfen, dass „${tab}“ ausgewählt und als CSV veröffentlicht ist.`);
+  }
   return parseCSV(text);
 }
 
@@ -119,8 +121,8 @@ async function loadSource() {
     };
   }
   const [k, s] = await Promise.all([
-    fetchCSV(process.env.GID_KREUZFAHRTEN || '1100'),
-    fetchCSV(process.env.GID_STOPPS || '1200'),
+    fetchCSV(process.env.GID_KREUZFAHRTEN || '1100', 'Kreuzfahrten'),
+    fetchCSV(process.env.GID_STOPPS || '1200', 'Stopps'),
   ]);
   return {
     cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten'),
