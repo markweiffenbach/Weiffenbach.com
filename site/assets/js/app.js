@@ -131,10 +131,13 @@ function prepare(data) {
     planned: c.start > TODAY,
     onboard: c.start <= TODAY && TODAY <= c.end,
     stops: [],
+    missed: [],
   }));
   const byId = new Map(cruises.map((c) => [c.id, c]));
   const stops = data.stops.filter((s) => s.lat != null && s.lng != null).map((s) => ({ ...s, cruise: s.cruise != null ? byId.get(s.cruise) : null }));
   for (const s of stops) if (s.cruise) s.cruise.stops.push(s);
+  const missed = (data.missed || []).map((x) => ({ ...x, cruise: byId.get(x.cruise) })).filter((x) => x.cruise);
+  for (const x of missed) x.cruise.missed.push(x);
   for (const c of cruises) {
     // Route über das Datum bilden: Am Wechseltag gehört der Hafen zu beiden Reisen (Aus- und Einschiffung)
     c.legs = stops.filter((s) => s.type !== 'Landaufenthalt' && s.cruise && c.start <= s.d && s.d <= c.end);
@@ -156,7 +159,7 @@ function prepare(data) {
     c.portNames.forEach((p) => seenPorts.add(p));
     c.countryNames.forEach((p) => seenCountries.add(p));
   }
-  return { generated: data.generated, cruises, stops, countries: data.countries || {}, ships: data.ships || {} };
+  return { generated: data.generated, cruises, stops, missed, countries: data.countries || {}, ships: data.ships || {} };
 }
 
 // Überquerungen von Äquator, Wendekreisen, Polarkreis und Datumsgrenze entlang der (Großkreis-)Route
@@ -221,7 +224,7 @@ function filtered() {
 
   const ys = cruises.map((c) => year(c.start));
   return {
-    cruises, stops, ports: portList, harbour, countries: [...countries.values()], countryVisits,
+    cruises, stops, missed: DATA.missed.filter((x) => ids.has(x.cruise.id)), ports: portList, harbour, countries: [...countries.values()], countryVisits,
     yearSpan: { first: Math.min(...ys), last: Math.max(...ys) },
   };
 }
@@ -304,6 +307,7 @@ function render() {
   renderCharts(current);
   renderFacts(current);
   renderFlags(current);
+  renderMissed(current);
   renderLog(current);
   const legendFirst = current.yearSpan.first, legendLast = current.yearSpan.last;
   $('#map-sub').textContent = current.cruises.length
@@ -547,16 +551,61 @@ function renderFlags(m) {
     </div></div>`).join('') || '<p class="empty">Keine Länder im aktuellen Filter.</p>';
 }
 
+// Geplante, aber nicht angelaufene Häfen
+const REASON_ORDER = ['Wetter', 'Gesundheit', 'Technik', 'Streik', 'Sicherheit', 'Behörden', 'unbekannt'];
+function renderMissed(m) {
+  const list = m.missed;
+  const done = m.cruises.filter((c) => !c.planned);
+  const calls = done.reduce((s, c) => s + c.portNames.length, 0);
+  const affected = new Set(list.map((x) => x.cruise.id)).size;
+  $('#missed-sub').textContent = 'Laut Fahrplan geplant, aber nicht angelaufen – zählen nicht als besucht';
+  if (!list.length) {
+    $('#missed').innerHTML = `<p class="empty">Im aktuellen Filter ist kein geplanter Hafen ausgefallen.</p>`;
+    return;
+  }
+  const share = calls + list.length ? (list.length / (calls + list.length)) * 100 : 0;
+  const reasons = [...group(list, (x) => x.reason)].map(([k, l]) => ({
+    label: k, value: l.length, tip: `<b>${esc(k)}</b>${l.map((x) => `${esc(x.port)} · ${esc(x.cruise.ship)} ${year(x.d)}`).join('<br>')}`,
+  })).sort((a, b) => b.value - a.value || REASON_ORDER.indexOf(a.label) - REASON_ORDER.indexOf(b.label));
+  const unsure = list.filter((x) => !x.sure).length;
+  $('#missed').innerHTML = `
+    <div class="missed-sum">
+      <div class="missed-kpis">
+        <div><b>${fmt.format(list.length)}</b><span>${list.length === 1 ? 'Hafen ausgefallen' : 'Häfen ausgefallen'}</span></div>
+        <div><b>${share.toLocaleString('de-DE', { maximumFractionDigits: 1 })} %</b><span>der geplanten Anläufe</span></div>
+        <div><b>${fmt.format(affected)}</b><span>von ${plural(done.length, 'Reise', 'Reisen')} betroffen</span></div>
+      </div>
+      <h3>Gründe</h3>
+      <div id="c-missed"></div>
+    </div>
+    <div class="table-wrap missed-list"><table class="data">
+      <thead><tr><th>Datum</th><th>Hafen</th><th>Reise</th><th>Grund</th><th>Details</th></tr></thead>
+      <tbody>${list.slice().reverse().map((x) => {
+        const meta = DATA.countries[x.country] || {};
+        return `<tr>
+          <td class="nowrap">${fmtDate(x.d)}</td>
+          <td><b>${esc(x.port)}</b><br><small>${flag(meta.a2)} ${esc(x.country)}</small></td>
+          <td><button class="link-btn" type="button" data-trip="${x.cruise.id}">${esc(x.cruise.ship)}</button><br><small>${esc(x.cruise.route)}</small></td>
+          <td><span class="badge warn">${esc(x.reason)}</span>${x.when ? `<br><small>${esc(x.when)}</small>` : ''}</td>
+          <td class="missed-note">${x.sure ? '' : '<span class="badge">wahrscheinlich</span> '}${esc(x.note)}${x.src ? ` <a href="${esc(x.src)}" target="_blank" rel="noopener noreferrer">Quelle ↗</a>` : ''}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    ${unsure ? `<p class="missed-foot">„wahrscheinlich“: aus Reiseberichten erschlossen, nicht offiziell bestätigt (${fmt.format(unsure)} von ${fmt.format(list.length)}).</p>` : ''}`;
+  hbars($('#c-missed'), reasons);
+  document.querySelectorAll('#missed [data-trip]').forEach((b) => b.addEventListener('click', () => openTrip(DATA.cruises[+b.dataset.trip])));
+}
+
 function renderLog(m) {
   const q = state.search;
-  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, ...c.stops.map((s) => `${s.port} ${s.country}`)].join(' ').toLowerCase().includes(q));
+  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, ...c.stops.map((s) => `${s.port} ${s.country}`), ...c.missed.map((x) => x.port)].join(' ').toLowerCase().includes(q));
   const LOG_LIMIT = 12;
   const shown = q || state.logAll ? list.slice().reverse() : list.slice().reverse().slice(0, LOG_LIMIT);
   const byYear = group(shown, (c) => year(c.start));
   $('#log').innerHTML = [...byYear].map(([y, trips]) => `<li class="log-year">${y}</li>` + trips.map((c) => `
     <li class="trip${state.selected === c.id ? ' active' : ''}" data-id="${c.id}" tabindex="0" role="button" aria-label="Details zu ${esc(c.ship)}, ${esc(c.route)}">
       <span class="trip-date">${fmtDate(c.start, { day: '2-digit', month: '2-digit' })} – ${fmtDate(c.end, { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}${c.photos.length ? `<span class="badge">${plural(c.photos.length, 'Foto', 'Fotos')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
+      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}${c.missed.length ? `<span class="badge warn">${fmt.format(c.missed.length)} ausgefallen</span>` : ''}${c.photos.length ? `<span class="badge">${plural(c.photos.length, 'Foto', 'Fotos')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
       <span class="trip-meta"><b>${c.nights}</b> Nächte<br>${plural(c.seaDays, 'Seetag', 'Seetage')} · ${fmt.format(Math.round(c.nm))} sm</span>
       <span class="trip-ports">${c.portNames.map((p) => (c.newPorts.includes(p) ? `<b>${esc(p)}</b>` : esc(p))).join(' · ') || '–'}</span>
     </li>`).join('')).join('') || '<li class="empty">Keine passende Reise.</li>';

@@ -207,8 +207,15 @@ export class TripMap {
       if (first.port === last.port) label(first, `Start &amp; Ziel: <b>${esc(first.port)}</b>`, 'top');
       else { label(first, `Start: <b>${esc(first.port)}</b>`, 'top'); label(last, `Ziel: <b>${esc(last.port)}</b>`, 'bottom'); }
     }
+    // Ausgefallene Häfen als leere, gestrichelte Kreise
+    for (const x of c.missed || []) {
+      if (x.lat == null || x.lng == null) continue;
+      L.circleMarker([x.lat, x.lng], { radius: 6, weight: 2, dashArray: '3 3', color: this.colors.accent, fill: false })
+        .bindTooltip(`<b>${esc(x.port)}</b> · ausgefallen<br><span class="muted">${esc(x.reason)} · ${fmtDate(x.d)}</span>`, { className: 'port-label', direction: 'top', offset: [0, -6] })
+        .addTo(this.labels);
+    }
     focus.hidden = false;
-    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm</span><br><button class="text-btn" type="button" data-f="details">Details &amp; Fotos</button> <button class="text-btn" type="button" data-f="all">Alle Reisen zeigen</button>`;
+    focus.innerHTML = `<b>${esc(c.ship)}</b>${esc(c.route)}<br><span class="muted">${fmtDate(c.start)} – ${fmtDate(c.end)} · ${c.nights} Nächte · ${fmt.format(Math.round(c.nm))} sm${c.missed?.length ? ` · ${c.missed.length} ausgefallen (gestrichelt)` : ''}</span><br><button class="text-btn" type="button" data-f="details">Details &amp; Fotos</button> <button class="text-btn" type="button" data-f="all">Alle Reisen zeigen</button>`;
     focus.querySelector('[data-f="all"]').addEventListener('click', () => this.onSelectCruise(null));
     focus.querySelector('[data-f="details"]').addEventListener('click', () => this.onOpenTrip(c.id));
     if (fit && c.legs.length) {
