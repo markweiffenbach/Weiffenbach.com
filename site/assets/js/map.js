@@ -61,9 +61,10 @@ function unwrapGeometry(geom) {
 }
 
 export class TripMap {
-  constructor(elId, { onSelectCruise, onOpenTrip }) {
+  constructor(elId, { onSelectCruise, onOpenTrip, onOpenPort }) {
     this.onSelectCruise = onSelectCruise;
     this.onOpenTrip = onOpenTrip;
+    this.onOpenPort = onOpenPort;
     this.map = L.map(elId, {
       preferCanvas: true, zoomSnap: 0.25, minZoom: 1.25, maxZoom: 9, worldCopyJump: false,
       maxBounds: [[-75, -400], [85, 400]], maxBoundsViscosity: 0.8, attributionControl: true,
@@ -171,7 +172,9 @@ export class TripMap {
       });
       const list = p.visits.slice().reverse().map((v) => `<li>${fmtDate(v.d)} · ${v.cruise ? esc(v.cruise.ship) : 'an Land'}${v.type === 'Passage' ? ' · Passage' : ''}</li>`).join('');
       m.bindTooltip(`<b>${esc(p.port)}</b> · ${esc(p.country)}<br><span class="muted">${p.visits.length} ${p.visits.length === 1 ? 'Besuch' : 'Besuche'}</span>`, { className: 'port-label', direction: 'top', offset: [0, -r] });
-      m.bindPopup(`<h3>${esc(p.port)}</h3><p class="muted">${esc(p.country)} · ${fmt.format(p.visits.length)} ${p.visits.length === 1 ? 'Besuch' : 'Besuche'}</p><ul>${list}</ul>`);
+      m.bindPopup(`<h3>${esc(p.port)}</h3><p class="muted">${esc(p.country)} · ${fmt.format(p.visits.length)} ${p.visits.length === 1 ? 'Besuch' : 'Besuche'}</p><ul>${list}</ul>
+        <p><button class="link-btn" type="button" data-archive>Im Hafen-Archiv ansehen ›</button></p>`);
+      m.on('popupopen', (e) => e.popup.getElement().querySelector('[data-archive]')?.addEventListener('click', () => this.onOpenPort(p.port)));
       m.addTo(g);
       for (const dx of [-360, 360]) {
         if ((dx < 0 && p.lng > 100) || (dx > 0 && p.lng < -100)) {

@@ -25,6 +25,14 @@ Ist ein geplanter Hafen ausgefallen (z. B. wegen Sturm), gehört er **nicht** in
 **Ausgefallen**: Datum laut Fahrplan, Hafen, Land, Grund (Auswahlliste) und optional Zeitpunkt, Status („bestätigt“ oder
 „wahrscheinlich“), Details und Quelle (Link). Die Homepage zeigt diese Häfen in einer eigenen Statistik, im Reiseverlauf
 durchgestrichen und auf der Karte gestrichelt. Steht ein Hafen versehentlich in beiden Tabs, meldet der Build das.
+
+Was wir in einem Hafen gemacht haben, steht im Tab **Tagebuch**: Datum, Hafen, Titel, Text und optional Tipps, Links
+(mehrere durch Leerzeichen getrennt) und Art (Auswahlliste). Die Spalte „Reise“ füllt sich von selbst. Die Einträge
+erscheinen in der Reise-Detailansicht beim jeweiligen Tag neben den Fotos; Vor- und Nachprogramm an Land (bis zu
+10 Tage vor bzw. nach der Reise) unter „Vorher an Land“ bzw. „Danach an Land“. Zusätzlich gibt es das
+**Hafen-Archiv** (Knopf oben rechts oder `…/#hafen`): alle Häfen mit unseren Besuchen, Aktivitäten, Tipps, eigenen Links
+sowie Links zu Wikipedia, Wikivoyage, Google Maps und Ausflugsangeboten. Buchungs- oder Ticketnummern gehören nicht
+ins Tagebuch.
 Die Homepage übernimmt die Änderungen jede Nacht. Sofort geht es über GitHub → **Actions** →
 „Homepage aktualisieren“ → **Run workflow** (oder über das optionale Menü im Sheet, siehe unten).
 
@@ -33,8 +41,9 @@ Die Homepage übernimmt die Änderungen jede Nacht. Sofort geht es über GitHub 
 ### 1. Sheet veröffentlichen (nur die Daten-Tabs)
 
 Im Sheet: **Datei → Freigeben → Im Web veröffentlichen**
-1. Unter „Veröffentlichte Inhalte und Einstellungen“ statt „Gesamtes Dokument“ nur **Kreuzfahrten**, **Stopps**, **Schiffe** und
-   **Ausgefallen** auswählen („Schiffe“ und „Ausgefallen“ sind optional: ohne sie fehlen nur die Schiffsdaten bzw. die ausgefallenen Häfen).
+1. Unter „Veröffentlichte Inhalte und Einstellungen“ statt „Gesamtes Dokument“ nur **Kreuzfahrten**, **Stopps**, **Schiffe**,
+   **Ausgefallen** und **Tagebuch** auswählen („Schiffe“, „Ausgefallen“ und „Tagebuch“ sind optional: ohne sie fehlen nur die
+   Schiffsdaten, die ausgefallenen Häfen bzw. das Reisetagebuch und Hafen-Archiv).
 2. Format: **Kommagetrennte Werte (.csv)** → **Veröffentlichen**.
 3. Den angezeigten Link kopieren (beginnt mit `https://docs.google.com/spreadsheets/d/e/2PACX-…`).
 
