@@ -2,6 +2,7 @@ import { deriveKey, decrypt, rememberKey, storedKey, forgetKey } from './crypto.
 import { columns, hbars, dataTable, esc, fmt } from './charts.js';
 import { TripMap, greatCircle, unwrap } from './map.js';
 import { initTripPanel, openTrip, setPhotoKey } from './trip.js';
+import { initArchive, showArchive } from './archive.js';
 
 const $ = (s) => document.querySelector(s);
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -117,12 +118,33 @@ function start(data, key) {
   setupFilters(years);
   setupChrome();
   renderNext();
-  map = new TripMap('map', { onSelectCruise: selectCruise, onOpenTrip: (id) => openTrip(DATA.cruises[id]) });
+  map = new TripMap('map', { onSelectCruise: selectCruise, onOpenTrip: (id) => openTrip(DATA.cruises[id]), onOpenPort: showPort });
   initTripPanel({
     cruises: DATA.cruises, countries: DATA.countries,
-    onShowMap: (id) => { state.selected = null; selectCruise(id); $('.card-map').scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+    onShowMap: (id) => {
+      if (location.hash) { history.pushState(null, '', location.pathname + location.search); route(); }
+      state.selected = null; selectCruise(id); $('.card-map').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    onShowPort: showPort,
   });
   render();
+  initArchive({ data: DATA, onOpenTrip: (id) => openTrip(DATA.cruises[id]) });
+  window.addEventListener('hashchange', route);
+  route();
+}
+
+// Zwei Ansichten: Übersicht (ohne Hash) und Hafen-Archiv (#hafen, #hafen/<Hafen>)
+function route() {
+  const m = location.hash.match(/^#hafen(?:\/(.+))?$/);
+  const view = m ? 'archive' : 'dash';
+  const changed = $('#app').dataset.view !== view;
+  $('#app').dataset.view = view;
+  if (m) showArchive(m[1] ? decodeURIComponent(m[1]) : null);
+  else if (changed) { window.scrollTo(0, 0); map.map.invalidateSize(); }
+}
+function showPort(port) {
+  const hash = `#hafen/${encodeURIComponent(port)}`;
+  if (location.hash === hash) route(); else location.hash = hash;
 }
 
 function prepare(data) {
@@ -132,12 +154,15 @@ function prepare(data) {
     onboard: c.start <= TODAY && TODAY <= c.end,
     stops: [],
     missed: [],
+    diary: [],
   }));
   const byId = new Map(cruises.map((c) => [c.id, c]));
   const stops = data.stops.filter((s) => s.lat != null && s.lng != null).map((s) => ({ ...s, cruise: s.cruise != null ? byId.get(s.cruise) : null }));
   for (const s of stops) if (s.cruise) s.cruise.stops.push(s);
   const missed = (data.missed || []).map((x) => ({ ...x, cruise: byId.get(x.cruise) })).filter((x) => x.cruise);
   for (const x of missed) x.cruise.missed.push(x);
+  const diary = (data.diary || []).map((e) => ({ ...e, cruise: e.cruise != null ? byId.get(e.cruise) : null }));
+  for (const e of diary) if (e.cruise) e.cruise.diary.push(e);
   for (const c of cruises) {
     // Route über das Datum bilden: Am Wechseltag gehört der Hafen zu beiden Reisen (Aus- und Einschiffung)
     c.legs = stops.filter((s) => s.type !== 'Landaufenthalt' && s.cruise && c.start <= s.d && s.d <= c.end);
@@ -159,7 +184,7 @@ function prepare(data) {
     c.portNames.forEach((p) => seenPorts.add(p));
     c.countryNames.forEach((p) => seenCountries.add(p));
   }
-  return { generated: data.generated, cruises, stops, missed, countries: data.countries || {}, ships: data.ships || {} };
+  return { generated: data.generated, cruises, stops, missed, diary, countries: data.countries || {}, ships: data.ships || {} };
 }
 
 // Überquerungen von Äquator, Wendekreisen, Polarkreis und Datumsgrenze entlang der (Großkreis-)Route

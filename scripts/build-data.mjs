@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Liest die Tabs „Kreuzfahrten“, „Stopps“, „Schiffe“ und „Ausgefallen“ aus dem Google Sheet, prüft und ergänzt die Daten
+// Liest die Tabs „Kreuzfahrten“, „Stopps“, „Schiffe“, „Ausgefallen“ und „Tagebuch“ aus dem Google Sheet, prüft und ergänzt die Daten
 // und schreibt sie AES-verschlüsselt nach <out>/data/data.enc.json.
 //
 // Umgebungsvariablen:
@@ -9,9 +9,10 @@
 //   GID_STOPPS         optional, Standard 1200
 //   GID_SCHIFFE        optional, Standard 1500
 //   GID_AUSGEFALLEN    optional, Standard 1600
+//   GID_TAGEBUCH       optional, Standard 1700
 // Optionen:
 //   --out <dir>        Zielordner (Standard: _site)
-//   --from-json <file> lokale Testdaten statt Sheet ({cruises, stops, ships?, missed?} im Seed-Format)
+//   --from-json <file> lokale Testdaten statt Sheet ({cruises, stops, ships?, missed?, diary?} im Seed-Format)
 //   --plain            zusätzlich unverschlüsselte data.json schreiben (nur lokal!)
 //   --photos-dir <dir> lokale Testfotos statt Google Drive (siehe scripts/photos.mjs)
 //   --photo-cache <d>  Cache-Ordner für verschlüsselte Fotos (Standard: .photo-cache)
@@ -141,6 +142,8 @@ async function loadSource() {
       missed: (seed.missed || []).map((m, i) => ({ _row: i + 2, Datum: m.datum, Hafen: m.hafen, Land: m.land, Grund: m.grund,
         Zeitpunkt: m.zeitpunkt || '', Status: m.status || '', Details: m.details || '', Quelle: m.quelle || '',
         Breite: m.lat != null ? String(m.lat) : '', 'Länge': m.lng != null ? String(m.lng) : '' })),
+      diary: (seed.diary || []).map((e, i) => ({ _row: i + 2, Datum: e.datum, Hafen: e.hafen || '', Titel: e.titel || '',
+        Tagebuch: e.text || '', Tipps: e.tipps || '', Links: e.links || '', Art: e.art || '' })),
     };
   }
   const [k, s] = await Promise.all([
@@ -163,24 +166,33 @@ async function loadSource() {
   } catch (e) {
     warn(`Ausgefallene Häfen nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
   }
+  // Ebenso optional: Reisetagebuch (was wir in den Häfen gemacht haben)
+  let diary = [];
+  try {
+    diary = table(await fetchCSV(process.env.GID_TAGEBUCH || '1700', 'Tagebuch'), ['Datum', 'Hafen', 'Titel', 'Tagebuch'], 'Tagebuch',
+      ['Tipps', 'Links', 'Art']);
+  } catch (e) {
+    warn(`Reisetagebuch nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne es gebaut.`);
+  }
   return {
     cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten'),
     stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps'),
     ships,
     missed,
+    diary,
   };
 }
 
 // ---------- Geocoding für neue Häfen ----------
 async function geocode(port, country) {
-  const q = `${port.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim()}, ${country}`;
-  const u = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=de&q=${encodeURIComponent(q)}`;
+  const q = [port.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim(), country].filter(Boolean).join(', ');
+  const u = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&accept-language=de&q=${encodeURIComponent(q)}`;
   try {
     await new Promise((r) => setTimeout(r, 1100)); // Nutzungsrichtlinie: max. 1 Anfrage/Sekunde
     const res = await fetch(u, { headers: { 'User-Agent': 'weiffenbach.com-build/1.0 (GitHub Actions)' } });
     if (!res.ok) return null;
     const [hit] = await res.json();
-    return hit ? { lat: +(+hit.lat).toFixed(3), lng: +(+hit.lon).toFixed(3) } : null;
+    return hit ? { lat: +(+hit.lat).toFixed(3), lng: +(+hit.lon).toFixed(3), a2: (hit.address?.country_code || '').toUpperCase() } : null;
   } catch { return null; }
 }
 
@@ -289,7 +301,48 @@ async function build() {
   }
   missed.sort((a, b) => a.d.localeCompare(b.d));
 
-  return { generated: new Date().toISOString(), cruises, stops, missed, countries, ships, warnings: warnings.length };
+  // Reisetagebuch: Einträge an Reisetagen gehören zur Reise, Vor- und Nachprogramm (bis 10 Tage davor/danach) ebenso
+  const NEAR = 10;
+  const GENERIC = new Set(['port', 'porto', 'puerto', 'san', 'santa', 'santo', 'saint', 'sankt', 'bay', 'isla', 'ilha', 'island', 'grand', 'grande', 'new', 'city']);
+  const words = (p) => p.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
+  const countryByA2 = new Map(Object.entries(countryTable).map(([name, m]) => [m.a2, name]));
+  const knownPorts = new Set([...stops.map((s) => s.port), ...missed.map((x) => x.port)]);
+  const placeInfo = new Map(); // Orte nur aus dem Tagebuch (z. B. Vorprogramm in Las Vegas)
+  const diary = [];
+  for (const r of src.diary) {
+    if (!r.Datum && !r.Titel && !r.Tagebuch) continue;
+    const d = parseDate(r.Datum);
+    if (!d) { warn(`Tagebuch, Zeile ${r._row}: Datum ungültig – Zeile übersprungen.`); continue; }
+    if (!r.Titel && !r.Tagebuch) { warn(`Tagebuch, Zeile ${r._row}: Titel und Text fehlen – Zeile übersprungen.`); continue; }
+    let c = findCruise(d), phase = '';
+    if (!c) {
+      const near = cruises.map((x) => (d < x.start ? { x, gap: days(d, x.start), phase: 'vor' } : { x, gap: days(x.end, d), phase: 'nach' }))
+        .filter((n) => n.gap <= NEAR).sort((a, b) => a.gap - b.gap)[0];
+      if (near) ({ x: c, phase } = near);
+    }
+    // Hafenname wie in „Stopps“, damit das Hafen-Archiv die Besuche zusammenführt (z. B. „Yokohama (Tokio)“ → „Tokio“)
+    let port = r.Hafen;
+    const w = port ? words(port) : [];
+    const same = port && (stops.find((s) => s.d === d && s.port === port) || stops.find((s) => s.d === d && words(s.port).some((x) => w.includes(x))));
+    if (same) port = same.port;
+    else if (port && !knownPorts.has(port)) {
+      if (!placeInfo.has(port)) {
+        const g = await geocode(port, '');
+        const country = g && countryByA2.get(g.a2);
+        placeInfo.set(port, g ? { lat: g.lat, lng: g.lng, country: country || '' } : null);
+        if (country) countries[country] = { a2: countryTable[country].a2, n: countryTable[country].n, k: countryTable[country].k };
+        if (!g) console.log(`ℹ Tagebuch, Zeile ${r._row}: Ort nicht in „Stopps“ und nicht automatisch gefunden.`);
+      }
+    }
+    const info = placeInfo.get(port);
+    const links = (r.Links || '').split(/\s+/).filter((u) => /^https?:\/\/\S+$/i.test(u));
+    diary.push({ d, port, place: port !== r.Hafen ? r.Hafen : '', title: r.Titel || '', text: r.Tagebuch || '', tips: r.Tipps || '',
+      links, art: r.Art || '', cruise: c ? c.id : null, phase,
+      ...(info ? { country: info.country, lat: info.lat, lng: info.lng } : {}) });
+  }
+  diary.sort((a, b) => a.d.localeCompare(b.d));
+
+  return { generated: new Date().toISOString(), cruises, stops, missed, diary, countries, ships, warnings: warnings.length };
 }
 
 // ---------- Verschlüsselung ----------
@@ -325,4 +378,4 @@ await mkdir(path.join(OUT, 'data'), { recursive: true });
 await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt(data, key)));
 if (PLAIN) await writeFile(path.join(OUT, 'data', 'data.json'), JSON.stringify(data, null, 1));
 
-console.log(`✓ ${data.cruises.length} Reisen, ${data.stops.length} Stopps, ${data.missed.length} ausgefallene Häfen, ${data.photos.length} Fotos verschlüsselt geschrieben (${warnings.length} Hinweise).`);
+console.log(`✓ ${data.cruises.length} Reisen, ${data.stops.length} Stopps, ${data.missed.length} ausgefallene Häfen, ${data.diary.length} Tagebucheinträge, ${data.photos.length} Fotos verschlüsselt geschrieben (${warnings.length} Hinweise).`);

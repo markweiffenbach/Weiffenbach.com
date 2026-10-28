@@ -1,12 +1,11 @@
-// Detailansicht einer Reise (Seitenpanel) mit Tagesverlauf, Schiffsdaten und verschlüsselten Fotos.
+// Detailansicht einer Reise (Seitenpanel) mit Tagesverlauf, Reisetagebuch, Schiffsdaten und verschlüsselten Fotos.
 import { esc, fmt } from './charts.js';
 import { decryptBytes } from './crypto.js';
+import { entryHtml, fmtDay, fmtDate, flagEmoji } from './diary.js';
 
 const $ = (s) => document.querySelector(s);
 const DAY = 86400000;
 const addDays = (d, n) => new Date(Date.parse(d + 'T12:00:00Z') + n * DAY).toISOString().slice(0, 10);
-const fmtDay = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
-const fmtDate = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const plural = (n, one, many) => `${fmt.format(n)} ${n === 1 ? one : many}`;
 
 // ---------- Fotos: laden, entschlüsseln, als Blob-URL bereitstellen ----------
@@ -38,7 +37,7 @@ function load(img) {
 }
 
 // ---------- Panel ----------
-let ctx = null; // { cruises, countries, onShowMap }
+let ctx = null; // { cruises, countries, onShowMap, onShowPort }
 let current = null;
 
 export function initTripPanel(context) {
@@ -64,6 +63,7 @@ export function openTrip(c) {
   panel.querySelector('[data-act="close"]').focus();
   for (const img of panel.querySelectorAll('img[data-photo]')) lazy ? lazy.observe(img) : load(img);
   panel.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => act(b)));
+  panel.querySelectorAll('[data-port]').forEach((b) => b.addEventListener('click', () => { closeTrip(); ctx.onShowPort(b.dataset.port); }));
   panel.querySelectorAll('.thumb').forEach((t) => t.addEventListener('click', () => openLightbox(+t.dataset.index)));
 }
 
@@ -135,15 +135,26 @@ function render(c) {
         ${x.note ? `<span class="tp-missed-note">${x.sure ? '' : 'wahrscheinlich: '}${esc(x.note)}</span>` : ''}</span>`;
     }).join('');
     const label = (places || `<span class="tp-sea">${n === 0 ? 'Einschiffung' : n === c.nights ? 'Ausschiffung' : 'Auf See'}</span>`) + missed;
+    // Reisetagebuch des Tages; bei mehreren Orten steht der Ort am Eintrag
+    const entries = c.diary.filter((e) => !e.phase && e.d === d);
+    const diary = entries.map((e) => entryHtml(e, { port: legs.length !== 1 || e.port !== legs[0].port, archive: true })).join('');
     const thumbs = dayPhotos.map(({ p, idx }) => `<button class="thumb" type="button" data-index="${idx}" aria-label="Foto vom ${fmtDate(p.d)} öffnen">
         <img data-photo="${p.t}" alt=""></button>`).join('');
     days.push(`<li class="tp-day${legs.length ? '' : ' sea'}">
         <span class="tp-dot" aria-hidden="true"></span>
         <div class="tp-dayhead"><b>Tag ${n + 1}</b> <span>${fmtDay(d)}</span></div>
         <div class="tp-places">${label}</div>
+        ${diary ? `<div class="tp-diary">${diary}</div>` : ''}
         ${thumbs ? `<div class="tp-thumbs">${thumbs}</div>` : ''}
       </li>`);
   }
+
+  // Vor- und Nachprogramm an Land
+  const extra = (phase, title) => {
+    const list = c.diary.filter((e) => e.phase === phase);
+    return list.length ? `<section class="tp-extra"><h3>${title}</h3><div class="tp-diary">${list.map((e) => entryHtml(e, { date: true, port: true, archive: true })).join('')}</div></section>` : '';
+  };
+  const entryCount = c.diary.length;
 
   return `
     <header class="tp-head">
@@ -164,14 +175,12 @@ function render(c) {
       </span>
     </div>
     ${shipHtml}
+    ${extra('vor', 'Vorher an Land')}
     <section>
-      <h3>Reiseverlauf${photos.length ? ` <small>· ${plural(photos.length, 'Foto', 'Fotos')}</small>` : ''}</h3>
+      <h3>Reiseverlauf${photos.length || entryCount ? ` <small>· ${[photos.length && plural(photos.length, 'Foto', 'Fotos'), entryCount && plural(entryCount, 'Tagebucheintrag', 'Tagebucheinträge')].filter(Boolean).join(' · ')}</small>` : ''}</h3>
       <ol class="tp-days">${days.join('')}</ol>
-    </section>`;
-}
-
-function flagEmoji(a2) {
-  return /^[A-Z]{2}$/.test(a2) ? String.fromCodePoint(...[...a2].map((ch) => 0x1f1a5 + ch.charCodeAt(0))) : '';
+    </section>
+    ${extra('nach', 'Danach an Land')}`;
 }
 
 // ---------- Großansicht ----------

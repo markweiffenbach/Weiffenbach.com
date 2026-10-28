@@ -53,6 +53,8 @@
       </div>
       <div class="top-actions">
         <span class="stamp">Stand <span data-bind="generated"></span></span>
+        <a class="text-btn nav-btn" href="#hafen" data-view-link="dash">Hafen-Archiv</a>
+        <a class="text-btn nav-btn" href="#" data-view-link="archive">‹ Übersicht</a>
         <button class="icon-btn" id="theme-btn" type="button" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel">
           <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
         </button>
@@ -68,9 +70,18 @@
       </div>
       <aside class="next" id="next-card" aria-live="polite"></aside>
     </div>
+
+    <div class="wrap hero hero-archive">
+      <div class="hero-main">
+        <p class="hero-label">Hafen-Archiv</p>
+        <p class="hero-figure"><span data-bind="archivePorts"></span></p>
+        <p class="hero-sub" data-bind="archiveSub"></p>
+      </div>
+      <p class="hero-note">Was wir in jedem Hafen gemacht haben, mit Tipps und Links für den nächsten Besuch.</p>
+    </div>
   </header>
 
-  <main class="wrap content">
+  <main class="wrap content" id="dash">
     <section class="kpis" id="kpis" aria-label="Kennzahlen"></section>
 
     <section class="filters" id="filters" aria-label="Filter">
@@ -178,6 +189,30 @@
         <button type="button" class="text-btn more" id="log-more" hidden></button>
       </article>
     </section>
+  </main>
+
+  <main class="wrap content" id="archive" aria-label="Hafen-Archiv">
+    <section class="filters" aria-label="Hafen-Archiv filtern">
+      <div class="filter grow">
+        <label for="a-q">Suchen</label>
+        <input type="search" id="a-q" class="search" placeholder="Hafen, Land, Aktivität, Tipp …">
+      </div>
+      <div class="filter">
+        <label for="a-k">Kontinent</label>
+        <select id="a-k"></select>
+      </div>
+      <div class="filter">
+        <label for="a-sort">Sortierung</label>
+        <select id="a-sort">
+          <option value="name">A–Z</option>
+          <option value="last">Zuletzt besucht</option>
+          <option value="visits">Meiste Besuche</option>
+        </select>
+      </div>
+      <label class="switch"><input type="checkbox" id="a-diary"><span>Nur mit Tagebuch</span></label>
+      <p class="arch-count" id="a-count"></p>
+    </section>
+    <div class="arch-list" id="a-list"></div>
   </main>
 
   <footer class="wrap foot">
