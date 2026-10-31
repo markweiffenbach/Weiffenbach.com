@@ -1,7 +1,7 @@
 import { deriveKey, decrypt, rememberKey, storedKey, forgetKey } from './crypto.js';
 import { columns, hbars, dataTable, esc, fmt } from './charts.js';
 import { TripMap, greatCircle, unwrap } from './map.js';
-import { initTripPanel, openTrip, setPhotoKey } from './trip.js';
+import { initTripPanel, openTrip, setPhotoKey, photoURL } from './trip.js';
 import { initArchive, showArchive } from './archive.js';
 import { initShips, showShips } from './ships.js';
 import { seasOf } from './seas.js';
@@ -121,6 +121,7 @@ function start(data, key) {
   setupFilters(years);
   setupChrome();
   renderNext();
+  renderMemory();
   map = new TripMap('map', { onSelectCruise: selectCruise, onOpenTrip: (id) => openTrip(DATA.cruises[id]), onOpenPort: showPort });
   initTripPanel({
     cruises: DATA.cruises, countries: DATA.countries,
@@ -419,6 +420,49 @@ function renderNext() {
     ${later > 0 ? `<p class="next-route" style="margin-top:10px">und ${plural(later, 'weitere Reise', 'weitere Reisen')} geplant</p>` : ''}`;
 }
 
+// „Heute vor X Jahren“: welche Reise an diesem Kalendertag lief; sonst der nächste solche Tag in den kommenden 30 Tagen
+function memoryMatches(offset) {
+  const day = new Date(Date.parse(TODAY + 'T12:00:00Z') + offset * 86400000).toISOString().slice(5, 10);
+  const hits = [];
+  for (const c of DATA.cruises) {
+    if (c.planned || c.onboard) continue;
+    for (const y of new Set([year(c.start), year(c.end)])) {
+      const d = `${y}-${day}`;
+      if (c.start <= d && d <= c.end && d < TODAY) hits.push({ c, d });
+    }
+  }
+  return hits.sort((a, b) => b.d.localeCompare(a.d));
+}
+function renderMemory() {
+  const el = $('#memory');
+  let offset = 0, hits = [];
+  for (; offset <= 30 && !hits.length; offset++) hits = memoryMatches(offset);
+  offset--;
+  if (!hits.length) { el.hidden = true; return; }
+  const ago = (d) => year(TODAY) - year(d);
+  const when = offset === 0 ? 'Heute' : offset === 1 ? 'Morgen' : `Am ${fmtDate(hits[0].d, { day: '2-digit', month: '2-digit' })}`;
+  const items = hits.slice(0, 3).map(({ c, d }) => {
+    const n = dayDiff(c.start, d);
+    const legs = c.legs.filter((s) => s.d === d && s.type !== 'Landaufenthalt');
+    const place = legs.length ? legs.map((s) => esc(s.port)).join(' · ')
+      : n === 0 ? 'Einschiffung' : n === c.nights ? 'Ausschiffung' : 'Auf See';
+    const entry = c.diary.find((e) => e.d === d && !e.phase);
+    const photos = c.photos.filter((p) => p.d === d).slice(0, 4);
+    return `<button class="memory-item" type="button" data-trip="${c.id}">
+        <span class="memory-ago">vor ${plural(ago(d), 'Jahr', 'Jahren')}</span>
+        <span class="memory-title">${esc(c.ship)} <small>${esc(c.route)}</small></span>
+        <span class="memory-day">Tag ${n + 1} von ${c.nights + 1} · ${fmtDate(d)} · <b>${place}</b></span>
+        ${entry ? `<span class="memory-entry"><b>${esc(entry.title)}</b>${entry.text ? ` – ${esc(entry.text.length > 180 ? entry.text.slice(0, 177).trimEnd() + ' …' : entry.text)}` : ''}</span>` : ''}
+        ${photos.length ? `<span class="memory-photos">${photos.map((p) => `<img data-photo="${esc(p.t)}" alt="">`).join('')}</span>` : ''}
+      </button>`;
+  }).join('');
+  el.innerHTML = `<div class="card-head"><div><h2>${when} vor ${[...new Set(hits.slice(0, 3).map((h) => ago(h.d)))].sort((a, b) => a - b).join(', ').replace(/, (\d+)$/, ' und $1')} ${hits.length === 1 && ago(hits[0].d) === 1 ? 'Jahr' : 'Jahren'}</h2><p class="card-sub">${offset === 0 ? 'An diesem Tag waren wir unterwegs' : `In ${plural(offset, 'Tag', 'Tagen')} jährt sich dieser Reisetag`}</p></div></div>
+    <div class="memory-list">${items}</div>`;
+  el.hidden = false;
+  el.querySelectorAll('[data-trip]').forEach((b) => b.addEventListener('click', () => openTrip(DATA.cruises[+b.dataset.trip])));
+  el.querySelectorAll('img[data-photo]').forEach((img) => photoURL(img.dataset.photo).then((u) => { img.src = u; img.classList.add('ready'); }).catch(() => img.remove()));
+}
+
 const isTable = (name) => document.querySelector(`[data-chart="${name}"]`).classList.contains('as-table');
 function chartOrTable(name, container, draw, cols, rows) {
   if (isTable(name)) dataTable(container, cols, rows); else draw();
@@ -582,6 +626,33 @@ function extraFacts(m) {
     if (cold !== hot) out.push(['Kältester Landgang', `${deg(cold.wx.hi)}`, `${cold.port} · ${fmtDate(cold.d)} (${cold.cruise.ship})`]);
     if (wet.wx.rain > 1) out.push(['Nassester Landgang', `${wet.wx.rain.toLocaleString('de-DE', { maximumFractionDigits: 1 })} mm Regen`, `${wet.port} · ${fmtDate(wet.d)} (${wet.cruise.ship})`]);
   }
+  // Tenderhäfen und Liegezeiten
+  const portDays = m.stops.filter((s) => s.type === 'Hafen' && s.cruise && !s.cruise.planned);
+  const tender = portDays.filter((s) => s.tender);
+  if (tender.length) {
+    const top = [...group(tender, (s) => s.port)].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'de'));
+    out.push(['Mit dem Tender an Land', `${tender.length}×`, `in ${plural(top.length, 'Hafen', 'Häfen')} · am häufigsten: ${top.slice(0, 3).map(([p, l]) => `${p}${l.length > 1 ? ` ${l.length}×` : ''}`).join(', ')}`]);
+  }
+  const mins = (t) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+  const stays = portDays.filter((s) => s.arr && s.dep && mins(s.dep) > mins(s.arr)).map((s) => ({ s, min: mins(s.dep) - mins(s.arr) }));
+  if (stays.length > 1) {
+    const hours = (x) => `${(x.min / 60).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Stunden`;
+    const long = stays.reduce((a, b) => (b.min > a.min ? b : a));
+    const short = stays.reduce((a, b) => (b.min < a.min ? b : a));
+    const avg = stays.reduce((sum, x) => sum + x.min, 0) / stays.length;
+    out.push(['Längste Liegezeit', hours(long), `${long.s.port} · ${fmtDate(long.s.d)}, ${long.s.arr}–${long.s.dep} Uhr (${long.s.cruise.ship})`]);
+    out.push(['Kürzeste Liegezeit', hours(short), `${short.s.port} · ${fmtDate(short.s.d)}, ${short.s.arr}–${short.s.dep} Uhr (${short.s.cruise.ship}) · Ø ${hours({ min: avg })}`]);
+  }
+  // Übernachtungen im Hafen: derselbe Hafen an zwei aufeinanderfolgenden Tagen einer Reise
+  const overnights = [];
+  for (const c of m.cruises.filter((x) => !x.planned)) {
+    const hs = c.legs.filter((s) => s.type === 'Hafen');
+    for (let i = 1; i < hs.length; i++) if (hs[i].port === hs[i - 1].port && dayDiff(hs[i - 1].d, hs[i].d) === 1) overnights.push({ s: hs[i - 1], c });
+  }
+  if (overnights.length) {
+    const top = [...group(overnights, (o) => o.s.port)].sort((a, b) => b[1].length - a[1].length).slice(0, 4).map(([p, l]) => `${p}${l.length > 1 ? ` ${l.length}×` : ''}`);
+    out.push(['Nächte im Hafen', `${overnights.length}×`, `Schiff blieb über Nacht: ${top.join(', ')}${overnights.length > 4 ? ' …' : ''}`]);
+  }
   // Zeitzonen und Meere
   const tz = m.cruises.filter((c) => c.tz.changes).reduce((a, b) => (b.tz.hours > (a?.tz.hours ?? -1) ? b : a), null);
   if (tz) out.push(['Meiste Zeitumstellungen', `Uhr ${plural(tz.tz.hours, 'Stunde', 'Stunden')} verstellt`, `${tz.ship} ${year(tz.start)} · ${plural(tz.tz.changes, 'Umstellung', 'Umstellungen')} zwischen ${utc(tz.tz.min)} und ${utc(tz.tz.max)}`]);
@@ -663,7 +734,7 @@ function renderMissed(m) {
         const meta = DATA.countries[x.country] || {};
         return `<tr>
           <td class="nowrap">${fmtDate(x.d)}</td>
-          <td><b>${esc(x.port)}</b><br><small>${flag(meta.a2)} ${esc(x.country)}</small></td>
+          <td><b>${esc(x.port)}</b><br><small>${flag(meta.a2)} ${esc(x.country)}</small>${x.subst ? `<br><small>stattdessen <button class="link-btn" type="button" data-port="${esc(x.subst)}">${esc(x.subst)}</button></small>` : ''}</td>
           <td><button class="link-btn" type="button" data-trip="${x.cruise.id}">${esc(x.cruise.ship)}</button><br><small>${esc(x.cruise.route)}</small></td>
           <td><span class="badge warn">${esc(x.reason)}</span>${x.when ? `<br><small>${esc(x.when)}</small>` : ''}</td>
           <td class="missed-note">${x.sure ? '' : '<span class="badge">wahrscheinlich</span> '}${esc(x.note)}${x.src ? ` <a href="${esc(x.src)}" target="_blank" rel="noopener noreferrer">Quelle ↗</a>` : ''}</td>
@@ -673,11 +744,12 @@ function renderMissed(m) {
     ${unsure ? `<p class="missed-foot">„wahrscheinlich“: aus Reiseberichten erschlossen, nicht offiziell bestätigt (${fmt.format(unsure)} von ${fmt.format(list.length)}).</p>` : ''}`;
   hbars($('#c-missed'), reasons);
   document.querySelectorAll('#missed [data-trip]').forEach((b) => b.addEventListener('click', () => openTrip(DATA.cruises[+b.dataset.trip])));
+  document.querySelectorAll('#missed [data-port]').forEach((b) => b.addEventListener('click', () => showPort(b.dataset.port)));
 }
 
 function renderLog(m) {
   const q = state.search;
-  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, ...c.stops.map((s) => `${s.port} ${s.country}`), ...c.missed.map((x) => x.port)].join(' ').toLowerCase().includes(q));
+  const list = m.cruises.filter((c) => !q || [c.ship, c.line, c.route, c.region, ...c.legs.map((s) => `${s.port} ${s.country}`), ...c.missed.map((x) => x.port)].join(' ').toLowerCase().includes(q));
   const LOG_LIMIT = 12;
   const shown = q || state.logAll ? list.slice().reverse() : list.slice().reverse().slice(0, LOG_LIMIT);
   const byYear = group(shown, (c) => year(c.start));

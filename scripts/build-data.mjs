@@ -170,7 +170,7 @@ async function loadSource() {
       ships: (seed.ships || []).map((x, i) => ({ _row: i + 2, ...x })),
       missed: (seed.missed || []).map((m, i) => ({ _row: i + 2, Datum: m.datum, Hafen: m.hafen, Land: m.land, Grund: m.grund,
         Zeitpunkt: m.zeitpunkt || '', Status: m.status || '', Details: m.details || '', Quelle: m.quelle || '',
-        Breite: m.lat != null ? String(m.lat) : '', 'Länge': m.lng != null ? String(m.lng) : '' })),
+        Breite: m.lat != null ? String(m.lat) : '', 'Länge': m.lng != null ? String(m.lng) : '', Ersatz: m.ersatz || '' })),
       diary: (seed.diary || []).map((e, i) => ({ _row: i + 2, Datum: e.datum, Hafen: e.hafen || '', Titel: e.titel || '',
         Tagebuch: e.text || '', Tipps: e.tipps || '', Links: e.links || '', Art: e.art || '' })),
       times: (seed.times || []).map((t, i) => ({ _row: i + 2, Datum: t.datum, Hafen: t.hafen, Ankunft: t.ankunft || '', Abfahrt: t.abfahrt || '', Tender: t.tender || '' })),
@@ -194,7 +194,7 @@ async function loadSource() {
   let missed = [];
   try {
     missed = table(await fetchCSV(process.env.GID_AUSGEFALLEN || '1600', 'Ausgefallen'), ['Datum', 'Hafen', 'Land', 'Grund'], 'Ausgefallen',
-      ['Zeitpunkt', 'Status', 'Details', 'Quelle', 'Breite', 'Länge']);
+      ['Zeitpunkt', 'Status', 'Details', 'Quelle', 'Breite', 'Länge', 'Ersatz']);
   } catch (e) {
     warn(`Ausgefallene Häfen nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
   }
@@ -360,9 +360,19 @@ async function build() {
     const meta = countryTable[country];
     if (meta) countries[country] = { a2: meta.a2, n: meta.n, k: meta.k };
     else warn(`Ausgefallen, Zeile ${r._row}: Land „${country || '(leer)'}“ unbekannt.`);
+    // Ersatzhafen: aus der Spalte „Ersatz“, sonst ein anderer Hafen derselben Reise am selben Tag
+    let subst = '';
+    if (r.Ersatz) {
+      const hit = stops.find((s) => s.cruise === c.id && s.port === r.Ersatz)
+        || stops.find((s) => s.cruise === c.id && s.port.toLowerCase().startsWith(r.Ersatz.toLowerCase()));
+      if (hit) subst = hit.port;
+      else warn(`Ausgefallen, Zeile ${r._row}: Ersatzhafen „${r.Ersatz}“ steht nicht in „Stopps“ dieser Reise.`);
+    } else {
+      subst = stops.find((s) => s.cruise === c.id && s.d === d && s.type === 'Hafen' && s.port !== r.Hafen)?.port || '';
+    }
     missed.push({ d, port: r.Hafen, country, reason: r.Grund || 'unbekannt', when: r.Zeitpunkt || '',
       sure: !/wahrscheinlich|unsicher|vermut/i.test(r.Status || ''), note: r.Details || '',
-      src: /^https?:\/\//i.test(r.Quelle || '') ? r.Quelle : '', lat, lng, cruise: c.id });
+      src: /^https?:\/\//i.test(r.Quelle || '') ? r.Quelle : '', lat, lng, cruise: c.id, ...(subst ? { subst } : {}) });
   }
   missed.sort((a, b) => a.d.localeCompare(b.d));
 

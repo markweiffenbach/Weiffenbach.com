@@ -5,7 +5,8 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 
 - **Ohne Passwort** sehen Besucher nur eine neutrale Startseite.
 - **Mit Passwort** öffnet sich das Dashboard: Weltkarte mit Routen und Häfen, Kennzahlen, Diagramme,
-  Länder-Sammlung, Rekorde, ausgefallene Häfen und Logbuch aller Reisen.
+  Länder-Sammlung, Rekorde (auch Tender, Liegezeiten und Nächte im Hafen), ausgefallene Häfen, Logbuch aller Reisen
+  und „Heute vor X Jahren“ (welche Reise an diesem Kalendertag lief, sonst der nächste solche Tag im kommenden Monat).
 - Die Reisedaten liegen **nur verschlüsselt** auf dem Server (AES-256-GCM, Schlüssel per PBKDF2 aus dem Passwort abgeleitet).
   Ohne Passwort lassen sie sich nicht lesen, auch nicht im Quelltext.
 
@@ -25,6 +26,8 @@ Ist ein geplanter Hafen ausgefallen (z. B. wegen Sturm), gehört er **nicht** in
 **Ausgefallen**: Datum laut Fahrplan, Hafen, Land, Grund (Auswahlliste) und optional Zeitpunkt, Status („bestätigt“ oder
 „wahrscheinlich“), Details und Quelle (Link). Die Homepage zeigt diese Häfen in einer eigenen Statistik, im Reiseverlauf
 durchgestrichen und auf der Karte gestrichelt. Steht ein Hafen versehentlich in beiden Tabs, meldet der Build das.
+In der optionalen Spalte „Ersatz“ steht der Hafen, der stattdessen angelaufen wurde (wie in „Stopps“ geschrieben); ohne
+Eintrag nimmt der Build einen anderen Hafen derselben Reise am selben Tag.
 
 Lief das Schiff einen Hafen auf unserer Reise zum ersten Mal an (Erstanlauf), steht in **Stopps** in der Spalte
 „Erstanlauf“ ein „ja“ (oder „wahrscheinlich“, wenn nicht eindeutig belegt) und in „Erstanlauf Quelle“ optional ein Link.
