@@ -511,3 +511,19 @@ html.no-scroll { overflow: hidden; }
   .ship-img { min-height: 0; aspect-ratio: 16 / 9; }
   .ship-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ---------- Heute vor X Jahren ---------- */
+.memory { margin-top: 12px; }
+.memory-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.memory-item { display: flex; flex-direction: column; gap: 4px; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--surface); }
+.memory-item:hover { border-color: var(--ink-2); }
+.memory-ago { font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .08em; }
+.memory-title { font-size: 17px; font-weight: 600; }
+.memory-title small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); }
+.memory-day { font-size: 14px; }
+.memory-entry { font-size: 14px; color: var(--ink-2); }
+.memory-entry b { color: var(--ink); font-weight: 600; }
+.memory-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.memory-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--surface-2); opacity: 0; transition: opacity .3s; }
+.memory-photos img.ready { opacity: 1; }

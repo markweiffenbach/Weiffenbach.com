@@ -137,6 +137,7 @@ function render(c) {
       const meta = ctx.countries[x.country] || {};
       return `<span class="tp-place tp-missed"><s>${esc(x.port)}</s>
         <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(x.country)}</small><span class="badge warn">ausgefallen · ${esc(x.reason)}</span>
+        ${x.subst ? `<span class="tp-missed-note">Stattdessen: <button class="link-btn" type="button" data-port="${esc(x.subst)}">${esc(x.subst)}</button></span>` : ''}
         ${x.note ? `<span class="tp-missed-note">${x.sure ? '' : 'wahrscheinlich: '}${esc(x.note)}</span>` : ''}</span>`;
     }).join('');
     const label = (places || `<span class="tp-sea">${n === 0 ? 'Einschiffung' : n === c.nights ? 'Ausschiffung' : 'Auf See'}</span>`) + missed;
