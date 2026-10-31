@@ -53,8 +53,9 @@
       </div>
       <div class="top-actions">
         <span class="stamp">Stand <span data-bind="generated"></span></span>
-        <a class="text-btn nav-btn" href="#hafen" data-view-link="dash">Hafen-Archiv</a>
-        <a class="text-btn nav-btn" href="#" data-view-link="archive">‹ Übersicht</a>
+        <a class="text-btn nav-btn" href="#" data-show="archive ships">‹ Übersicht</a>
+        <a class="text-btn nav-btn" href="#hafen" data-show="dash ships">Hafen-Archiv</a>
+        <a class="text-btn nav-btn" href="#schiffe" data-show="dash archive">Schiffe</a>
         <button class="icon-btn" id="theme-btn" type="button" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel">
           <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
         </button>
@@ -62,7 +63,7 @@
       </div>
     </div>
 
-    <div class="wrap hero">
+    <div class="wrap hero" data-show="dash">
       <div class="hero-main">
         <p class="hero-label">Nächte an Bord</p>
         <p class="hero-figure"><span data-bind="nights"></span></p>
@@ -71,7 +72,7 @@
       <aside class="next" id="next-card" aria-live="polite"></aside>
     </div>
 
-    <div class="wrap hero hero-archive">
+    <div class="wrap hero hero-archive" data-show="archive">
       <div class="hero-main">
         <p class="hero-label">Hafen-Archiv</p>
         <p class="hero-figure"><span data-bind="archivePorts"></span></p>
@@ -79,9 +80,18 @@
       </div>
       <p class="hero-note">Was wir in jedem Hafen gemacht haben, mit Tipps und Links für den nächsten Besuch.</p>
     </div>
+
+    <div class="wrap hero hero-archive" data-show="ships">
+      <div class="hero-main">
+        <p class="hero-label">Unsere Schiffe</p>
+        <p class="hero-figure"><span data-bind="shipCount"></span></p>
+        <p class="hero-sub" data-bind="shipSub"></p>
+      </div>
+      <p class="hero-note">Jedes Schiff, auf dem wir unterwegs waren, mit Steckbrief und allen Reisen darauf.</p>
+    </div>
   </header>
 
-  <main class="wrap content" id="dash">
+  <main class="wrap content" id="dash" data-show="dash">
     <section class="kpis" id="kpis" aria-label="Kennzahlen"></section>
 
     <section class="filters" id="filters" aria-label="Filter">
@@ -191,7 +201,7 @@
     </section>
   </main>
 
-  <main class="wrap content" id="archive" aria-label="Hafen-Archiv">
+  <main class="wrap content" id="archive" aria-label="Hafen-Archiv" data-show="archive">
     <section class="filters" aria-label="Hafen-Archiv filtern">
       <div class="filter grow">
         <label for="a-q">Suchen</label>
@@ -213,6 +223,28 @@
       <p class="arch-count" id="a-count"></p>
     </section>
     <div class="arch-list" id="a-list"></div>
+  </main>
+
+  <main class="wrap content" id="ships" aria-label="Schiffe" data-show="ships">
+    <section class="filters" aria-label="Schiffe filtern">
+      <div class="filter">
+        <label for="s-line">Reederei</label>
+        <select id="s-line"></select>
+      </div>
+      <div class="filter">
+        <label for="s-sort">Sortierung</label>
+        <select id="s-sort">
+          <option value="nights">Meiste Nächte</option>
+          <option value="trips">Meiste Reisen</option>
+          <option value="last">Zuletzt gefahren</option>
+          <option value="gt">Größe (BRZ)</option>
+          <option value="built">Neueste zuerst</option>
+          <option value="name">A–Z</option>
+        </select>
+      </div>
+      <p class="arch-count" id="s-count"></p>
+    </section>
+    <div class="ship-list" id="s-list"></div>
   </main>
 
   <footer class="wrap foot">
