@@ -147,10 +147,13 @@ Fotos löschen = Datei aus dem Ordner entfernen.
 Ohne diese Secrets läuft alles wie bisher, nur ohne Fotos. Bereits verarbeitete Fotos werden zwischengespeichert,
 damit die nächtlichen Läufe schnell bleiben.
 
-## Optional: Menü „Homepage → Jetzt aktualisieren“ im Sheet
+## Optional: Menü „Homepage“ im Sheet (Aktualisieren und Sicherung)
 
 Siehe Anleitung oben in [`tools/apps-script.gs`](tools/apps-script.gs): Code in **Erweiterungen → Apps Script**
-einfügen und einen GitHub-Token als Skripteigenschaft hinterlegen.
+einfügen. Das Menü bietet
+- **Jetzt aktualisieren**: baut die Homepage sofort neu (braucht einen GitHub-Token als Skripteigenschaft),
+- **Sicherung jetzt anlegen** und **Wöchentliche Sicherung einrichten**: legt eine Kopie des Sheets im Drive-Ordner
+  „Schiffsurlaube – Sicherungen“ ab, auf Wunsch jeden Sonntag automatisch; die letzten 26 Kopien bleiben erhalten.
 
 ## Struktur
 
