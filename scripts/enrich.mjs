@@ -103,7 +103,23 @@ async function search(lang, name) {
   return null;
 }
 
+// bestimmtes Foto aus Wikimedia Commons („File:…“ / „Datei:…“), z. B. eines aus früherer Bemalung
+async function commonsFile(file) {
+  const title = `File:${file.trim()}`;
+  const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&redirects=1&prop=imageinfo&iiprop=url&iiurlwidth=640&titles=${encodeURIComponent(title)}`);
+  const info = Object.values(q?.query?.pages || {})[0]?.imageinfo?.[0];
+  return info ? { thumb: info.thumburl || info.url, page: info.descriptionurl || '' } : null;
+}
+
 async function findShipImage(name, override) {
+  const file = override.match(/^(?:commons:)?(?:File|Datei):(.+)$/i);
+  if (file) {
+    // fest vorgegebenes Foto; ohne Rückfall auf die Suche, sonst käme das aktuelle Bild zurück
+    const img = await commonsFile(file[1]);
+    if (!img) return null;
+    const article = await findShipImage(name, '');
+    return { ...img, page: article?.page || img.page };
+  }
   const tries = [];
   if (override) {
     const m = override.match(/^(de|en):(.+)$/);
@@ -145,7 +161,7 @@ export async function addShipImages(ships, cache, { key, keyId, outDir, encryptB
     }
     delete ship.imgSrc;
     if (!c?.data) { missing++; continue; }
-    const file = createHash('sha256').update(`${keyId}:ship:${name}:${c.page}`).digest('hex').slice(0, 32);
+    const file = createHash('sha256').update(`${keyId}:ship:${name}:${c.page}:${c.src}`).digest('hex').slice(0, 32);
     await writeFile(path.join(outDir, 'photos', `${file}.bin`), await encryptBytes(Buffer.from(c.data, 'base64'), key));
     ship.img = file;
     ship.wiki = c.page;
