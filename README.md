@@ -26,6 +26,10 @@ Ist ein geplanter Hafen ausgefallen (z. B. wegen Sturm), gehört er **nicht** in
 „wahrscheinlich“), Details und Quelle (Link). Die Homepage zeigt diese Häfen in einer eigenen Statistik, im Reiseverlauf
 durchgestrichen und auf der Karte gestrichelt. Steht ein Hafen versehentlich in beiden Tabs, meldet der Build das.
 
+Lief das Schiff einen Hafen auf unserer Reise zum ersten Mal an (Erstanlauf), steht in **Stopps** in der Spalte
+„Erstanlauf“ ein „ja“ (oder „wahrscheinlich“, wenn nicht eindeutig belegt) und in „Erstanlauf Quelle“ optional ein Link.
+Die Homepage kennzeichnet diese Häfen im Reiseverlauf, im Logbuch, im Hafen-Archiv, auf der Karte und in den Fakten.
+
 Was wir in einem Hafen gemacht haben, steht im Tab **Tagebuch**: Datum, Hafen, Titel, Text und optional Tipps, Links
 (mehrere durch Leerzeichen getrennt) und Art (Auswahlliste). Die Spalte „Reise“ füllt sich von selbst. Die Einträge
 erscheinen in der Reise-Detailansicht beim jeweiligen Tag neben den Fotos; Vor- und Nachprogramm an Land (bis zu

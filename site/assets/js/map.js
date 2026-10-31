@@ -170,7 +170,7 @@ export class TripMap {
       const m = L.circleMarker([p.lat, p.lng], {
         radius: r, weight: 2, color: this.colors.surface, fillColor: isLand ? this.colors.seq[2] : this.colors.accent, fillOpacity: 1,
       });
-      const list = p.visits.slice().reverse().map((v) => `<li>${fmtDate(v.d)} · ${v.cruise ? esc(v.cruise.ship) : 'an Land'}${v.type === 'Passage' ? ' · Passage' : ''}</li>`).join('');
+      const list = p.visits.slice().reverse().map((v) => `<li>${fmtDate(v.d)} · ${v.cruise ? esc(v.cruise.ship) : 'an Land'}${v.type === 'Passage' ? ' · Passage' : ''}${v.first ? ` · Erstanlauf${v.first === 'ja' ? '' : '?'}` : ''}</li>`).join('');
       m.bindTooltip(`<b>${esc(p.port)}</b> · ${esc(p.country)}<br><span class="muted">${p.visits.length} ${p.visits.length === 1 ? 'Besuch' : 'Besuche'}</span>`, { className: 'port-label', direction: 'top', offset: [0, -r] });
       m.bindPopup(`<h3>${esc(p.port)}</h3><p class="muted">${esc(p.country)} · ${fmt.format(p.visits.length)} ${p.visits.length === 1 ? 'Besuch' : 'Besuche'}</p><ul>${list}</ul>
         <p><button class="link-btn" type="button" data-archive>Im Hafen-Archiv ansehen ›</button></p>`);

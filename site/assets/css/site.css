@@ -23,6 +23,7 @@
   --on-navy-2: #a9bbcf;
   --good: #0ca30c;
   --warn-wash: rgba(214, 140, 42, 0.18);
+  --first-wash: rgba(12, 163, 12, 0.14);
   --shadow: 0 1px 2px rgba(11, 29, 48, 0.06), 0 8px 24px rgba(11, 29, 48, 0.06);
   --radius: 14px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -33,7 +34,7 @@
     --page: #0d0d0d; --surface: #1a1a19; --surface-2: #252524;
     --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
-    --accent: #3987e5; --accent-soft: rgba(57, 135, 229, 0.40); --accent-wash: rgba(57, 135, 229, 0.16); --warn-wash: rgba(229, 160, 57, 0.24);
+    --accent: #3987e5; --accent-soft: rgba(57, 135, 229, 0.40); --accent-wash: rgba(57, 135, 229, 0.16); --warn-wash: rgba(229, 160, 57, 0.24); --first-wash: rgba(52, 199, 89, 0.20);
     --seq-1: #12304d; --seq-2: #184f95; --seq-3: #1c5cab; --seq-4: #2a78d6; --seq-5: #5598e7; --seq-6: #9ec5f4;
     --ocean: #0f1a26; --land: #22252a; --land-line: #3a3f46;
     --navy: #07131f; --navy-2: #0e2338;
@@ -45,7 +46,7 @@
   --page: #0d0d0d; --surface: #1a1a19; --surface-2: #252524;
   --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
   --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
-  --accent: #3987e5; --accent-soft: rgba(57, 135, 229, 0.40); --accent-wash: rgba(57, 135, 229, 0.16); --warn-wash: rgba(229, 160, 57, 0.24);
+  --accent: #3987e5; --accent-soft: rgba(57, 135, 229, 0.40); --accent-wash: rgba(57, 135, 229, 0.16); --warn-wash: rgba(229, 160, 57, 0.24); --first-wash: rgba(52, 199, 89, 0.20);
   --seq-1: #12304d; --seq-2: #184f95; --seq-3: #1c5cab; --seq-4: #2a78d6; --seq-5: #5598e7; --seq-6: #9ec5f4;
   --ocean: #0f1a26; --land: #22252a; --land-line: #3a3f46;
   --navy: #07131f; --navy-2: #0e2338;
@@ -293,6 +294,8 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .trip-meta b { color: var(--ink); font-size: 15px; }
 .badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--ink); margin-left: 6px; vertical-align: 2px; font-weight: 500; }
 .badge.warn { background: var(--warn-wash); }
+.badge.first { background: var(--first-wash); text-decoration: none; }
+a.badge.first:hover { text-decoration: underline; }
 
 /* ---------- Ausgefallene Häfen ---------- */
 .missed { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 24px; align-items: start; }

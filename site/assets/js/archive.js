@@ -1,6 +1,6 @@
 // Hafen-Archiv: alle Häfen mit unseren Besuchen, Reisetagebuch, Tipps und weiterführenden Links (Ansicht #hafen).
 import { esc, fmt } from './charts.js';
-import { entryHtml, fmtDate, flagEmoji, linkHtml } from './diary.js';
+import { entryHtml, fmtDate, flagEmoji, linkHtml, firstCallBadge } from './diary.js';
 
 const $ = (s) => document.querySelector(s);
 const plural = (n, one, many) => `${fmt.format(n)} ${n === 1 ? one : many}`;
@@ -30,6 +30,7 @@ function collect(data) {
     const v = visit(p, s.cruise ? `c${s.cruise.id}` : `l${s.d.slice(0, 7)}`, { d: s.d, cruise: s.cruise });
     v.days.add(s.d);
     v.types.add(s.type);
+    if (s.first && !v.first) v.first = s;
   }
   for (const e of data.diary) {
     if (!e.port) continue;
@@ -161,7 +162,7 @@ function bodyHtml(p) {
     return `<li class="arch-visit">
         <p class="arch-vhead"><span class="arch-when">${when}</span>
           ${c ? `<button class="link-btn" type="button" data-trip="${c.id}">${esc(c.ship)}</button> <small>${esc(c.route)}</small>` : '<span>an Land</span>'}
-          ${type ? `<span class="badge">${esc(type)}</span>` : ''}${c?.planned ? '<span class="badge">geplant</span>' : ''}</p>
+          ${type ? `<span class="badge">${esc(type)}</span>` : ''}${c?.planned ? '<span class="badge">geplant</span>' : ''}${v.first && c ? firstCallBadge(v.first, c.ship) : ''}</p>
         ${v.entries.length ? `<div class="tp-diary">${v.entries.map((e) => entryHtml(e, { date: days.length > 1, port: !!e.place })).join('')}</div>`
           : `<p class="arch-none">${c?.planned ? 'Noch nichts geplant – Ideen im Tab „Tagebuch“ eintragen.' : 'Kein Tagebucheintrag.'}</p>`}
       </li>`;
