@@ -34,7 +34,7 @@ jobs:
           sed -i -E "s#(assets/(css|js)/[a-z]+\.(css|js))\"#\1?v=$V\"#g" _site/index.html
           sed -i -E "s#from '\./([a-z]+)\.js'#from './\1.js?v=$V'#g" _site/assets/js/*.js
       - name: Foto-Cache laden
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .photo-cache
           key: photos-${{ github.run_id }}
@@ -46,8 +46,8 @@ jobs:
           GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
           PHOTO_FOLDER_ID: ${{ secrets.PHOTO_FOLDER_ID }}
         run: node scripts/build-data.mjs --out _site
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
@@ -59,4 +59,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
