@@ -1,8 +1,8 @@
 import { deriveKey, decrypt, rememberKey, storedKey, forgetKey } from './crypto.js';
-import { columns, hbars, dataTable, esc, fmt } from './charts.js';
+import { columns, hbars, dataTable, esc, fmt, hideTip } from './charts.js';
 import { TripMap, greatCircle, unwrap } from './map.js';
 import { initTripPanel, openTrip, setPhotoKey, photoURL } from './trip.js';
-import { initArchive, showArchive } from './archive.js';
+import { initArchive, showArchive, filterArchive } from './archive.js';
 import { initShips, showShips } from './ships.js';
 import { seasOf } from './seas.js';
 import { utc } from './diary.js';
@@ -136,7 +136,56 @@ function start(data, key) {
   initArchive({ data: DATA, onOpenTrip: (id) => openTrip(DATA.cruises[id]) });
   initShips({ data: DATA, onOpenTrip: (id) => openTrip(DATA.cruises[id]) });
   window.addEventListener('hashchange', route);
+  setupNavigation();
   route();
+}
+
+// ======================= Navigation aus Kacheln, Rekorden und Diagrammen =======================
+// Ziel als Text: trip:<id>, port:<Hafen>, ship:<Schiff>, country:<Land>, continent:<Kontinent>,
+// year:<Jahr>, line:<Reederei>, region:<Fahrtgebiet>, scroll:<CSS-Selektor>, archive, ships
+const go = (target) => (target == null ? '' : ` data-go="${esc(target)}" role="button" tabindex="0"`);
+function setupNavigation() {
+  const run = (e) => {
+    const el = e.target.closest('[data-go]');
+    if (!el || e.target.closest('a, button:not([data-go]), select, input')) return false;
+    hideTip();
+    navigate(el.dataset.go);
+    return true;
+  };
+  document.addEventListener('click', (e) => { if (run(e)) e.preventDefault(); });
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-go]') && run(e)) e.preventDefault();
+  });
+}
+function navigate(target) {
+  const i = target.indexOf(':');
+  const kind = i < 0 ? target : target.slice(0, i), val = i < 0 ? '' : target.slice(i + 1);
+  const toArchive = () => { if (location.hash === '#hafen') route(); else location.hash = '#hafen'; };
+  if (kind === 'trip') openTrip(DATA.cruises[+val]);
+  else if (kind === 'port') showPort(val);
+  else if (kind === 'ship') showShip(val);
+  else if (kind === 'ships') location.hash = '#schiffe';
+  else if (kind === 'archive') { filterArchive(); toArchive(); }
+  else if (kind === 'country') { filterArchive({ q: val }); toArchive(); }
+  else if (kind === 'continent') { filterArchive({ k: val }); toArchive(); }
+  else if (kind === 'year') setFilters({ from: +val, to: +val });
+  else if (kind === 'line') setFilters({ line: val });
+  else if (kind === 'region') setFilters({ region: val });
+  else if (kind === 'scroll') document.querySelector(val)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// Filter der Übersicht setzen und zu den Filtern springen, damit die Änderung sichtbar ist
+function setFilters(patch) {
+  Object.assign(state, patch);
+  $('#f-from').value = state.from; $('#f-to').value = state.to;
+  $('#f-line').value = state.line; $('#f-region').value = state.region;
+  saveFilters();
+  render();
+  $('#filters').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function saveFilters() {
+  const p = readPrefs();
+  p.filters = { from: state.from, to: state.to, line: state.line, region: state.region, planned: state.planned };
+  writePrefs(p);
 }
 
 // Zwei Ansichten: Übersicht (ohne Hash) und Hafen-Archiv (#hafen, #hafen/<Hafen>)
@@ -305,9 +354,7 @@ function setupFilters(years) {
     state.line = $('#f-line').value;
     state.region = $('#f-region').value;
     state.planned = $('#f-planned').checked;
-    const p = readPrefs();
-    p.filters = { from: state.from, to: state.to, line: state.line, region: state.region, planned: state.planned };
-    writePrefs(p);
+    saveFilters();
     render();
   };
   for (const id of ['#f-from', '#f-to', '#f-line', '#f-region', '#f-planned']) $(id).addEventListener('change', update);
@@ -387,16 +434,16 @@ function renderKpis(m) {
     ? `≈ ${y ? plural(y, 'Jahr', 'Jahre') : ''}${y && mo ? ' und ' : ''}${mo ? plural(mo, 'Monat', 'Monate') : ''} auf See · ${plural(m.cruises.length, 'Reise', 'Reisen')}`
     : 'Keine Reisen im aktuellen Filter');
   const tiles = [
-    ['Kreuzfahrten', m.cruises.length, planned ? `davon ${planned} geplant` : `${state.from}–${state.to}`],
-    ['Häfen', m.harbour.length, `${fmt.format(m.harbour.reduce((s, p) => s + p.visits.length, 0))} Hafenbesuche`],
-    ['Länder', m.countries.length, ''],
-    ['Kontinente', continents.size, ''],
-    ['Schiffe', new Set(m.cruises.map((c) => c.ship)).size, ''],
-    ['Reedereien', new Set(m.cruises.map((c) => c.line)).size, ''],
-    ['Seemeilen', Math.round(nm), `≈ ${(nm / EARTH_NM).toLocaleString('de-DE', { maximumFractionDigits: 1 })}× um die Erde`],
-    ['Seetage', seaDays, nights ? `${Math.round((seaDays / (nights + m.cruises.length)) * 100)} % der Tage an Bord` : ''],
+    ['Kreuzfahrten', m.cruises.length, planned ? `davon ${planned} geplant` : `${state.from}–${state.to}`, 'scroll:#log-card'],
+    ['Häfen', m.harbour.length, `${fmt.format(m.harbour.reduce((s, p) => s + p.visits.length, 0))} Hafenbesuche`, 'archive'],
+    ['Länder', m.countries.length, '', 'scroll:#flags-card'],
+    ['Kontinente', continents.size, '', 'scroll:[data-chart="continents"]'],
+    ['Schiffe', new Set(m.cruises.map((c) => c.ship)).size, '', 'ships'],
+    ['Reedereien', new Set(m.cruises.map((c) => c.line)).size, '', 'scroll:[data-chart="lines"]'],
+    ['Seemeilen', Math.round(nm), `≈ ${(nm / EARTH_NM).toLocaleString('de-DE', { maximumFractionDigits: 1 })}× um die Erde`, 'scroll:.card-map'],
+    ['Seetage', seaDays, nights ? `${Math.round((seaDays / (nights + m.cruises.length)) * 100)} % der Tage an Bord` : '', 'scroll:#facts-card'],
   ];
-  $('#kpis').innerHTML = tiles.map(([l, v, n]) => `<div class="kpi"><p class="kpi-label">${l}</p><p class="kpi-value">${fmt.format(v)}</p>${n ? `<p class="kpi-note">${n}</p>` : ''}</div>`).join('');
+  $('#kpis').innerHTML = tiles.map(([l, v, n, t]) => `<div class="kpi"${go(t)}><p class="kpi-label">${l}</p><p class="kpi-value">${fmt.format(v)}</p>${n ? `<p class="kpi-note">${n}</p>` : ''}</div>`).join('');
 }
 
 function renderNext() {
@@ -404,12 +451,14 @@ function renderNext() {
   const on = DATA.cruises.find((c) => c.onboard);
   if (on) {
     const total = on.nights || 1, gone = dayDiff(on.start, TODAY);
+    card.dataset.go = `trip:${on.id}`; card.setAttribute('role', 'button'); card.tabIndex = 0;
     card.innerHTML = `<p class="next-kicker">Gerade an Bord</p><p class="next-title">${esc(on.ship)}</p><p class="next-route">${esc(on.route)}</p>
       <div class="next-count"><b>Tag ${gone + 1}</b><span>von ${total + 1}</span></div><div class="next-bar"><i style="width:${(gone / total) * 100}%"></i></div>`;
     return;
   }
   const next = DATA.cruises.filter((c) => c.planned).sort((a, b) => a.start.localeCompare(b.start))[0];
   if (!next) { card.innerHTML = ''; return; }
+  card.dataset.go = `trip:${next.id}`; card.setAttribute('role', 'button'); card.tabIndex = 0;
   const last = DATA.cruises.filter((c) => c.end < TODAY).sort((a, b) => b.end.localeCompare(a.end))[0];
   const left = dayDiff(TODAY, next.start);
   const span = last ? dayDiff(last.end, next.start) : left;
@@ -483,7 +532,7 @@ function renderCharts(m) {
     const list = byYear.get(y) || [];
     const value = list.reduce((s, c) => s + c.nights, 0);
     const plannedPart = list.filter((c) => c.planned).reduce((s, c) => s + c.nights, 0);
-    return { label: String(y), year: y, value, plannedPart, count: list.length,
+    return { label: String(y), year: y, value, plannedPart, count: list.length, go: list.length ? `year:${y}` : null, goLabel: `Nur ${y} anzeigen`,
       tip: `<b>${y}</b>${list.length ? list.map((c) => `${esc(c.ship)} · ${c.nights} N.${c.planned ? ' (geplant)' : ''}`).join('<br>') : '<span class="muted">keine Reise</span>'}` };
   }) : [];
   const avg = m.cruises.length ? m.cruises.reduce((s, c) => s + c.nights, 0) / Math.max(1, ys.length) : 0;
@@ -499,15 +548,16 @@ function renderCharts(m) {
   }).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, 'de'));
   const cols3 = (l) => [{ key: 'label', label: l }, { key: 'count', label: 'Reisen', num: true }, { key: 'value', label: 'Nächte', num: true }];
 
-  const lineRows = nightsBy((c) => c.line);
+  const lineRows = nightsBy((c) => c.line).map((r) => ({ ...r, go: `line:${r.label}` }));
   chartOrTable('lines', $('#c-lines'), () => hbars($('#c-lines'), lineRows, { limit: 10 }), cols3('Reederei'), lineRows);
-  const regionRows = nightsBy((c) => c.region);
+  const regionRows = nightsBy((c) => c.region).map((r) => ({ ...r, go: `region:${r.label}` }));
   chartOrTable('regions', $('#c-regions'), () => hbars($('#c-regions'), regionRows, { limit: 10 }), cols3('Fahrtgebiet'), regionRows);
   const shipRows = nightsBy((c) => c.ship, (list) => {
     const i = list[0].shipInfo;
     return `${list[0].line} · ${plural(list.length, 'Reise', 'Reisen')}${i?.gt ? ` · ${fmt.format(i.gt)} BRZ` : ''}`;
   }).map((r) => {
     const i = DATA.ships[r.label];
+    r = { ...r, go: `ship:${r.label}` };
     if (!i) return r;
     const facts = [i.built && `in Dienst seit ${i.built}`, i.gt && `${fmt.format(i.gt)} BRZ`, i.length && `${fmt.format(i.length)} m lang`,
       i.pax && `${fmt.format(i.pax)} Passagiere`].filter(Boolean).join(' · ');
@@ -520,7 +570,7 @@ function renderCharts(m) {
 
   // Häfen
   const portRows = m.harbour.map((p) => ({
-    label: p.port, sub: p.country, value: p.visits.length, country: p.country,
+    label: p.port, sub: p.country, value: p.visits.length, country: p.country, go: `port:${p.port}`,
     tip: `<b>${esc(p.port)}</b>${esc(p.country)}<br><span class="muted">${p.visits.map((v) => year(v.d)).join(', ')}</span>`,
   })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, 'de'));
   chartOrTable('ports', $('#c-ports'), () => hbars($('#c-ports'), portRows, { limit: 10 }),
@@ -528,7 +578,7 @@ function renderCharts(m) {
 
   // Länder
   const countryRows = m.countries.map((c) => ({
-    label: `${flag(c.a2)} ${c.name}`, name: c.name, value: c.visits, ports: c.ports.size, sub: plural(c.ports.size, 'Hafen', 'Häfen'),
+    label: `${flag(c.a2)} ${c.name}`, name: c.name, value: c.visits, ports: c.ports.size, sub: plural(c.ports.size, 'Hafen', 'Häfen'), go: `country:${c.name}`,
     tip: `<b>${esc(c.name)}</b>${plural(c.visits, 'Hafenbesuch', 'Hafenbesuche')}<br><span class="muted">${[...c.ports].map(esc).join(' · ')}</span>`,
   })).sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, 'de'));
   chartOrTable('countries', $('#c-countries'), () => hbars($('#c-countries'), countryRows, { limit: 10 }),
@@ -547,7 +597,7 @@ function renderCharts(m) {
   // Kontinente
   const cont = new Map();
   for (const c of m.countries) for (const k of c.k) { if (!cont.has(k)) cont.set(k, []); cont.get(k).push(c.name); }
-  const contRows = [...cont].map(([k, list]) => ({ label: k, value: list.length, tip: `<b>${esc(k)}</b>${list.sort((a, b) => a.localeCompare(b, 'de')).map(esc).join(', ')}` }))
+  const contRows = [...cont].map(([k, list]) => ({ label: k, value: list.length, go: `continent:${k}`, tip: `<b>${esc(k)}</b>${list.sort((a, b) => a.localeCompare(b, 'de')).map(esc).join(', ')}` }))
     .sort((a, b) => b.value - a.value || CONTINENT_ORDER.indexOf(a.label) - CONTINENT_ORDER.indexOf(b.label));
   chartOrTable('continents', $('#c-continents'), () => hbars($('#c-continents'), contRows),
     [{ key: 'label', label: 'Kontinent' }, { key: 'value', label: 'Länder', num: true }], contRows);
@@ -578,42 +628,43 @@ function renderFacts(m) {
     newPorts = lastTrip.portNames.filter((p) => !before.has(p));
   }
   const facts = [
-    ['Längste Reise', plural(longest.nights, 'Nacht', 'Nächte'), `${longest.ship} · ${longest.route} (${year(longest.start)})`],
-    ['Weiteste Reise', `${fmt.format(Math.round(farthest.nm))} sm`, `${farthest.ship} · ${farthest.route} (${year(farthest.start)})`],
-    ['Gesamtstrecke', `${fmt.format(Math.round(totalNm))} sm`, `≈ ${fmt.format(Math.round(totalNm * 1.852))} km · ${(totalNm / EARTH_NM).toLocaleString('de-DE', { maximumFractionDigits: 1 })}× um die Erde`],
-    north && ['Am weitesten im Norden', north.port, `${north.lat.toFixed(1).replace('.', ',')}° N · ${north.country}`],
-    south && ['Am weitesten im Süden', south.port, `${Math.abs(south.lat).toFixed(1).replace('.', ',')}° ${south.lat < 0 ? 'S' : 'N'} · ${south.country}`],
-    topPort && ['Meistbesuchter Hafen', topPort.port, `${plural(topPort.visits.length, 'Besuch', 'Besuche')} · ${topPort.country}`],
-    ['Lieblingsschiff', favShip[0], `${plural(favShip[1], 'Nacht', 'Nächte')} auf ${plural(favShip[2], 'Reise', 'Reisen')}`],
-    ['Rekordjahr', String(bestYear[0]), `${plural(bestYear[1], 'Nacht', 'Nächte')} auf ${plural(bestYear[2], 'Reise', 'Reisen')}`],
-    ['Erste Reise', `${MONTHS[+first.start.slice(5, 7) - 1]} ${year(first.start)}`, `${first.ship} · ${first.route}`],
+    ['Längste Reise', plural(longest.nights, 'Nacht', 'Nächte'), `${longest.ship} · ${longest.route} (${year(longest.start)})`, `trip:${longest.id}`],
+    ['Weiteste Reise', `${fmt.format(Math.round(farthest.nm))} sm`, `${farthest.ship} · ${farthest.route} (${year(farthest.start)})`, `trip:${farthest.id}`],
+    ['Gesamtstrecke', `${fmt.format(Math.round(totalNm))} sm`, `≈ ${fmt.format(Math.round(totalNm * 1.852))} km · ${(totalNm / EARTH_NM).toLocaleString('de-DE', { maximumFractionDigits: 1 })}× um die Erde`, 'scroll:.card-map'],
+    north && ['Am weitesten im Norden', north.port, `${north.lat.toFixed(1).replace('.', ',')}° N · ${north.country}`, north.type === 'Hafen' ? `port:${north.port}` : `trip:${north.cruise.id}`],
+    south && ['Am weitesten im Süden', south.port, `${Math.abs(south.lat).toFixed(1).replace('.', ',')}° ${south.lat < 0 ? 'S' : 'N'} · ${south.country}`, south.type === 'Hafen' ? `port:${south.port}` : `trip:${south.cruise.id}`],
+    topPort && ['Meistbesuchter Hafen', topPort.port, `${plural(topPort.visits.length, 'Besuch', 'Besuche')} · ${topPort.country}`, `port:${topPort.port}`],
+    ['Lieblingsschiff', favShip[0], `${plural(favShip[1], 'Nacht', 'Nächte')} auf ${plural(favShip[2], 'Reise', 'Reisen')}`, `ship:${favShip[0]}`],
+    ['Rekordjahr', String(bestYear[0]), `${plural(bestYear[1], 'Nacht', 'Nächte')} auf ${plural(bestYear[2], 'Reise', 'Reisen')}`, `year:${bestYear[0]}`],
+    ['Erste Reise', `${MONTHS[+first.start.slice(5, 7) - 1]} ${year(first.start)}`, `${first.ship} · ${first.route}`, `trip:${first.id}`],
     ['Ø Reisedauer', `${(m.cruises.reduce((s, c) => s + c.nights, 0) / m.cruises.length).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Nächte`,
       `Ø ${(m.cruises.reduce((s, c) => s + c.portNames.length, 0) / m.cruises.length).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Häfen pro Reise`],
     ...extraFacts(m),
-    newPorts && ['Zuletzt neu entdeckt', plural(newPorts.length, 'neuer Hafen', 'neue Häfen'), newPorts.length ? newPorts.slice(0, 4).join(', ') + (newPorts.length > 4 ? ' …' : '') : `${lastTrip.ship}, ${year(lastTrip.start)}`],
+    newPorts && ['Zuletzt neu entdeckt', plural(newPorts.length, 'neuer Hafen', 'neue Häfen'), newPorts.length ? newPorts.slice(0, 4).join(', ') + (newPorts.length > 4 ? ' …' : '') : `${lastTrip.ship}, ${year(lastTrip.start)}`, `trip:${lastTrip.id}`],
   ].filter(Boolean);
-  el.innerHTML = facts.map(([l, v, n]) => `<div class="fact"><p class="fact-label">${esc(l)}</p><p class="fact-value">${esc(v)}</p><p class="fact-note">${esc(n)}</p></div>`).join('');
+  el.innerHTML = facts.map(([l, v, n, t]) => `<div class="fact"${go(t)}><p class="fact-label">${esc(l)}</p><p class="fact-value">${esc(v)}</p><p class="fact-note">${esc(n)}</p></div>`).join('');
 }
 
 function extraFacts(m) {
   const out = [];
   const sum = (key) => m.cruises.reduce((s, c) => s + c.cross[key], 0);
   const which = (key) => m.cruises.filter((c) => c.cross[key]).map((c) => `${c.ship} ${year(c.start)}`);
+  const only = (key) => { const l = m.cruises.filter((c) => c.cross[key]); return l.length === 1 ? `trip:${l[0].id}` : 'scroll:.card-map'; };
   const eq = sum('equator');
-  if (eq) out.push(['Äquator überquert', `${eq}×`, which('equator').join(', ')]);
+  if (eq) out.push(['Äquator überquert', `${eq}×`, which('equator').join(', '), only('equator')]);
   const dl = sum('dateline');
-  if (dl) out.push(['Datumsgrenze überquert', `${dl}×`, which('dateline').join(', ')]);
+  if (dl) out.push(['Datumsgrenze überquert', `${dl}×`, which('dateline').join(', '), only('dateline')]);
   const tr = sum('cancer') + sum('capricorn');
-  if (tr) out.push(['Wendekreise überquert', `${tr}×`, `Krebs ${sum('cancer')}× · Steinbock ${sum('capricorn')}×`]);
+  if (tr) out.push(['Wendekreise überquert', `${tr}×`, `Krebs ${sum('cancer')}× · Steinbock ${sum('capricorn')}×`, 'scroll:.card-map']);
   const ar = sum('arctic');
-  if (ar) out.push(['Polarkreis überquert', `${ar}×`, which('arctic').join(', ')]);
+  if (ar) out.push(['Polarkreis überquert', `${ar}×`, which('arctic').join(', '), only('arctic')]);
   // Erstanläufe: das Schiff lief den Hafen auf unserer Reise zum ersten Mal an
   const firsts = m.cruises.flatMap((c) => c.firstCalls.map((s) => `${s.port} (${c.ship} ${year(s.d)})`));
   if (firsts.length) out.push(['Erstanläufe miterlebt', `${firsts.length}×`, firsts.join(', ')]);
   const best = m.cruises.reduce((a, b) => (b.newPorts.length > (a?.newPorts.length ?? -1) ? b : a), null);
   if (best?.newPorts.length) {
     out.push(['Meiste Erstbesuche', plural(best.newPorts.length, 'neuer Hafen', 'neue Häfen'),
-      `${best.ship} ${year(best.start)}${best.newCountries.length ? ` · ${plural(best.newCountries.length, 'neues Land', 'neue Länder')}` : ''}`]);
+      `${best.ship} ${year(best.start)}${best.newCountries.length ? ` · ${plural(best.newCountries.length, 'neues Land', 'neue Länder')}` : ''}`, `trip:${best.id}`]);
   }
   // Wetter an den Hafentagen
   const wx = m.stops.filter((s) => s.wx && s.type === 'Hafen' && s.cruise);
@@ -622,16 +673,16 @@ function extraFacts(m) {
     const cold = wx.reduce((a, b) => (b.wx.hi < a.wx.hi ? b : a));
     const wet = wx.reduce((a, b) => ((b.wx.rain ?? 0) > (a.wx.rain ?? 0) ? b : a));
     const deg = (v) => `${v.toLocaleString('de-DE', { maximumFractionDigits: 1 })} °C`;
-    out.push(['Wärmster Landgang', `${deg(hot.wx.hi)}`, `${hot.port} · ${fmtDate(hot.d)} (${hot.cruise.ship})`]);
-    if (cold !== hot) out.push(['Kältester Landgang', `${deg(cold.wx.hi)}`, `${cold.port} · ${fmtDate(cold.d)} (${cold.cruise.ship})`]);
-    if (wet.wx.rain > 1) out.push(['Nassester Landgang', `${wet.wx.rain.toLocaleString('de-DE', { maximumFractionDigits: 1 })} mm Regen`, `${wet.port} · ${fmtDate(wet.d)} (${wet.cruise.ship})`]);
+    out.push(['Wärmster Landgang', `${deg(hot.wx.hi)}`, `${hot.port} · ${fmtDate(hot.d)} (${hot.cruise.ship})`, `trip:${hot.cruise.id}`]);
+    if (cold !== hot) out.push(['Kältester Landgang', `${deg(cold.wx.hi)}`, `${cold.port} · ${fmtDate(cold.d)} (${cold.cruise.ship})`, `trip:${cold.cruise.id}`]);
+    if (wet.wx.rain > 1) out.push(['Nassester Landgang', `${wet.wx.rain.toLocaleString('de-DE', { maximumFractionDigits: 1 })} mm Regen`, `${wet.port} · ${fmtDate(wet.d)} (${wet.cruise.ship})`, `trip:${wet.cruise.id}`]);
   }
   // Tenderhäfen und Liegezeiten
   const portDays = m.stops.filter((s) => s.type === 'Hafen' && s.cruise && !s.cruise.planned);
   const tender = portDays.filter((s) => s.tender);
   if (tender.length) {
     const top = [...group(tender, (s) => s.port)].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'de'));
-    out.push(['Mit dem Tender an Land', `${tender.length}×`, `in ${plural(top.length, 'Hafen', 'Häfen')} · am häufigsten: ${top.slice(0, 3).map(([p, l]) => `${p}${l.length > 1 ? ` ${l.length}×` : ''}`).join(', ')}`]);
+    out.push(['Mit dem Tender an Land', `${tender.length}×`, `in ${plural(top.length, 'Hafen', 'Häfen')} · am häufigsten: ${top.slice(0, 3).map(([p, l]) => `${p}${l.length > 1 ? ` ${l.length}×` : ''}`).join(', ')}`, `port:${top[0][0]}`]);
   }
   const mins = (t) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
   const stays = portDays.filter((s) => s.arr && s.dep && mins(s.dep) > mins(s.arr)).map((s) => ({ s, min: mins(s.dep) - mins(s.arr) }));
@@ -640,8 +691,8 @@ function extraFacts(m) {
     const long = stays.reduce((a, b) => (b.min > a.min ? b : a));
     const short = stays.reduce((a, b) => (b.min < a.min ? b : a));
     const avg = stays.reduce((sum, x) => sum + x.min, 0) / stays.length;
-    out.push(['Längste Liegezeit', hours(long), `${long.s.port} · ${fmtDate(long.s.d)}, ${long.s.arr}–${long.s.dep} Uhr (${long.s.cruise.ship})`]);
-    out.push(['Kürzeste Liegezeit', hours(short), `${short.s.port} · ${fmtDate(short.s.d)}, ${short.s.arr}–${short.s.dep} Uhr (${short.s.cruise.ship}) · Ø ${hours({ min: avg })}`]);
+    out.push(['Längste Liegezeit', hours(long), `${long.s.port} · ${fmtDate(long.s.d)}, ${long.s.arr}–${long.s.dep} Uhr (${long.s.cruise.ship})`, `trip:${long.s.cruise.id}`]);
+    out.push(['Kürzeste Liegezeit', hours(short), `${short.s.port} · ${fmtDate(short.s.d)}, ${short.s.arr}–${short.s.dep} Uhr (${short.s.cruise.ship}) · Ø ${hours({ min: avg })}`, `trip:${short.s.cruise.id}`]);
   }
   // Übernachtungen im Hafen: derselbe Hafen an zwei aufeinanderfolgenden Tagen einer Reise
   const overnights = [];
@@ -650,17 +701,18 @@ function extraFacts(m) {
     for (let i = 1; i < hs.length; i++) if (hs[i].port === hs[i - 1].port && dayDiff(hs[i - 1].d, hs[i].d) === 1) overnights.push({ s: hs[i - 1], c });
   }
   if (overnights.length) {
-    const top = [...group(overnights, (o) => o.s.port)].sort((a, b) => b[1].length - a[1].length).slice(0, 4).map(([p, l]) => `${p}${l.length > 1 ? ` ${l.length}×` : ''}`);
-    out.push(['Nächte im Hafen', `${overnights.length}×`, `Schiff blieb über Nacht: ${top.join(', ')}${overnights.length > 4 ? ' …' : ''}`]);
+    const ranked = [...group(overnights, (o) => o.s.port)].sort((a, b) => b[1].length - a[1].length);
+    const top = ranked.slice(0, 4).map(([p, l]) => `${p}${l.length > 1 ? ` ${l.length}×` : ''}`);
+    out.push(['Nächte im Hafen', `${overnights.length}×`, `Schiff blieb über Nacht: ${top.join(', ')}${ranked.length > 4 ? ' …' : ''}`, `port:${ranked[0][0]}`]);
   }
   // Zeitzonen und Meere
   const tz = m.cruises.filter((c) => c.tz.changes).reduce((a, b) => (b.tz.hours > (a?.tz.hours ?? -1) ? b : a), null);
-  if (tz) out.push(['Meiste Zeitumstellungen', `Uhr ${plural(tz.tz.hours, 'Stunde', 'Stunden')} verstellt`, `${tz.ship} ${year(tz.start)} · ${plural(tz.tz.changes, 'Umstellung', 'Umstellungen')} zwischen ${utc(tz.tz.min)} und ${utc(tz.tz.max)}`]);
+  if (tz) out.push(['Meiste Zeitumstellungen', `Uhr ${plural(tz.tz.hours, 'Stunde', 'Stunden')} verstellt`, `${tz.ship} ${year(tz.start)} · ${plural(tz.tz.changes, 'Umstellung', 'Umstellungen')} zwischen ${utc(tz.tz.min)} und ${utc(tz.tz.max)}`, `trip:${tz.id}`]);
   const seas = new Map();
   for (const c of m.cruises.filter((x) => !x.planned)) for (const n of c.seas) seas.set(n, (seas.get(n) || 0) + 1);
   if (seas.size) {
     const top = [...seas].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n, k]) => `${n} ${k}×`);
-    out.push(['Befahrene Meere', plural(seas.size, 'Meer', 'Meere'), `inkl. Ozeane, grob nach Route · am häufigsten: ${top.join(', ')}`]);
+    out.push(['Befahrene Meere', plural(seas.size, 'Meer', 'Meere'), `inkl. Ozeane, grob nach Route · am häufigsten: ${top.join(', ')}`, 'scroll:.card-map']);
   }
   const flights = m.cruises.flatMap((c) => c.travel.filter((t) => t.km));
   if (flights.length) {
@@ -668,13 +720,13 @@ function extraFacts(m) {
     out.push(['Geflogen', `${fmt.format(kmSum)} km`, `${plural(flights.length, 'Flug', 'Flüge')} zu und von den Schiffen · ≈ ${(kmSum / 40075).toLocaleString('de-DE', { maximumFractionDigits: 1 })}× um die Erde`]);
   }
   const sea = m.cruises.reduce((a, b) => (b.seaDays > (a?.seaDays ?? -1) ? b : a), null);
-  if (sea) out.push(['Meiste Seetage', plural(sea.seaDays, 'Seetag', 'Seetage'), `${sea.ship} · ${sea.route} (${year(sea.start)})`]);
+  if (sea) out.push(['Meiste Seetage', plural(sea.seaDays, 'Seetag', 'Seetage'), `${sea.ship} · ${sea.route} (${year(sea.start)})`, `trip:${sea.id}`]);
   const withShip = m.cruises.filter((c) => c.shipInfo?.gt);
   if (withShip.length) {
     const big = withShip.reduce((a, b) => (b.shipInfo.gt > a.shipInfo.gt ? b : a));
     const small = withShip.reduce((a, b) => (b.shipInfo.gt < a.shipInfo.gt ? b : a));
-    out.push(['Größtes Schiff', big.ship, `${fmt.format(big.shipInfo.gt)} BRZ · ${fmt.format(big.shipInfo.pax || 0)} Passagiere`]);
-    if (small.ship !== big.ship) out.push(['Kleinstes Schiff', small.ship, `${fmt.format(small.shipInfo.gt)} BRZ · ${fmt.format(small.shipInfo.pax || 0)} Passagiere`]);
+    out.push(['Größtes Schiff', big.ship, `${fmt.format(big.shipInfo.gt)} BRZ · ${fmt.format(big.shipInfo.pax || 0)} Passagiere`, `ship:${big.ship}`]);
+    if (small.ship !== big.ship) out.push(['Kleinstes Schiff', small.ship, `${fmt.format(small.shipInfo.gt)} BRZ · ${fmt.format(small.shipInfo.pax || 0)} Passagiere`, `ship:${small.ship}`]);
   }
   const aged = m.cruises.filter((c) => c.shipInfo?.built);
   if (aged.length) {
@@ -682,7 +734,7 @@ function extraFacts(m) {
     const newest = aged.reduce((a, b) => (year(b.start) - b.shipInfo.built < year(a.start) - a.shipInfo.built ? b : a));
     out.push(['Ø Schiffsalter', `${avg.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Jahre`,
       `zur Reisezeit · am neuesten: ${newest.ship} ${year(newest.start)}${year(newest.start) <= newest.shipInfo.built ? ' im Jahr der Indienststellung'
-        : ` (${plural(year(newest.start) - newest.shipInfo.built, 'Jahr', 'Jahre')} alt)`}`]);
+        : ` (${plural(year(newest.start) - newest.shipInfo.built, 'Jahr', 'Jahre')} alt)`}`, 'ships']);
   }
   return out;
 }
@@ -697,7 +749,7 @@ function renderFlags(m) {
   $('#flags-sub').textContent = `${plural(m.countries.length, 'Land', 'Länder')} auf ${plural(groups.size, 'Kontinent', 'Kontinenten')}, in der Reihenfolge des ersten Besuchs`;
   $('#flags').innerHTML = [...groups].sort((a, b) => CONTINENT_ORDER.indexOf(a[0]) - CONTINENT_ORDER.indexOf(b[0])).map(([k, list]) => `
     <div class="flag-group"><h3>${esc(k)} <span>· ${list.length}</span></h3><div class="flag-list">
-    ${list.sort((a, b) => a.first.localeCompare(b.first)).map((c) => `<span class="flag" title="${esc(c.name)}: ${plural(c.visits, 'Hafenbesuch', 'Hafenbesuche')}, zuerst ${year(c.first)}"><span class="fl" aria-hidden="true">${flag(c.a2)}</span>${esc(c.name)} <small>${year(c.first)}</small></span>`).join('')}
+    ${list.sort((a, b) => a.first.localeCompare(b.first)).map((c) => `<span class="flag" title="${esc(c.name)}: ${plural(c.visits, 'Hafenbesuch', 'Hafenbesuche')}, zuerst ${year(c.first)} – Häfen im Archiv zeigen"${go(`country:${c.name}`)}><span class="fl" aria-hidden="true">${flag(c.a2)}</span>${esc(c.name)} <small>${year(c.first)}</small></span>`).join('')}
     </div></div>`).join('') || '<p class="empty">Keine Länder im aktuellen Filter.</p>';
 }
 

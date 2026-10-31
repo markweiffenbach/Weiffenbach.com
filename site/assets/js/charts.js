@@ -55,7 +55,7 @@ function onResize(container, draw) {
 }
 
 /**
- * Säulendiagramm. rows: [{label, value, plannedPart?, tip}]
+ * Säulendiagramm. rows: [{label, value, plannedPart?, tip, go?}] – go: Navigationsziel (siehe app.js)
  * opts: {height, labelEvery}
  */
 export function columns(container, rows, opts = {}) {
@@ -88,6 +88,7 @@ export function columns(container, rows, opts = {}) {
       if (hd > 0) el('path', { class: 'bar', d: hp > 0 ? `M${cx - bw / 2},${m.t + ih}V${m.t + ih - hd}H${cx + bw / 2}V${m.t + ih}Z` : colPath(cx - bw / 2, m.t + ih - h, bw, h) }, g);
       if (hp > 0) el('path', { class: 'bar planned', d: colPath(cx - bw / 2, m.t + ih - h, bw, Math.max(1, hp - (hd > 0 ? 2 : 0))) }, g);
       const hit = el('rect', { class: 'hit', x: m.l + band * i, y: m.t, width: band, height: ih }, g);
+      if (r.go) { hit.dataset.go = r.go; hit.setAttribute('class', 'hit go'); hit.setAttribute('role', 'button'); hit.setAttribute('tabindex', '0'); hit.setAttribute('aria-label', r.goLabel || r.label); }
       hit.addEventListener('mouseenter', (ev) => showTip(r.tip, ev));
       hit.addEventListener('mousemove', moveTip);
       hit.addEventListener('mouseleave', hideTip);
@@ -105,7 +106,7 @@ export function columns(container, rows, opts = {}) {
 }
 
 /**
- * Horizontale Balken (HTML). rows: [{label, sub?, value, valueLabel?, tip}]
+ * Horizontale Balken (HTML). rows: [{label, sub?, value, valueLabel?, tip, go?}]
  * opts: {limit}
  */
 export function hbars(container, rows, opts = {}) {
@@ -120,7 +121,8 @@ export function hbars(container, rows, opts = {}) {
     wrap.innerHTML = '';
     for (const r of rows.slice(0, n)) {
       const row = document.createElement('div');
-      row.className = 'hrow';
+      row.className = r.go ? 'hrow go' : 'hrow';
+      if (r.go) { row.dataset.go = r.go; row.setAttribute('role', 'button'); row.tabIndex = 0; }
       row.innerHTML = `<span class="hlabel" title="${esc(r.label)}">${esc(r.label)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</span>
         <span class="htrack"><span class="hbar" style="width:calc((100% - 56px) * ${(r.value / max).toFixed(4)})"></span><span class="hval">${r.valueLabel ?? fmt.format(r.value)}</span></span>`;
       row.addEventListener('mouseenter', (ev) => showTip(r.tip, ev));
