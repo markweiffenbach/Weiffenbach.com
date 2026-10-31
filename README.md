@@ -45,8 +45,13 @@ Weitere optionale Tabs reichern die Reisen an:
   Bei Hotels steht der Ort unter „Von“. Für Flüge berechnet der Build die Flugkilometer.
 - **An Bord**: Datum, Art (Restaurant, Show, Spa …), Name und Hinweis, z. B. gebuchte Restaurants und Shows.
 
-Dazu kommen in **Kreuzfahrten** die Spalten „Mitreisende“ und „Kabine“ sowie in **Schiffe** „Werft“, „Klasse“ und
-„Schwesterschiffe“. Preise, Buchungs- und Ticketnummern gehören in keinen dieser Tabs.
+Dazu kommen in **Kreuzfahrten** die Spalten „Mitreisende“ und „Kabine“ sowie in **Schiffe** „Werft“, „Klasse“,
+„Schwesterschiffe“ und „Bild“.
+
+Die **Schiffsübersicht** (Knopf „Schiffe“ oder `…/#schiffe`) zeigt jedes Schiff mit Foto, Steckbrief, unseren Reisen,
+Nächten, Häfen und Seemeilen darauf. Das Foto holt der Build aus Wikipedia (Artikel mit dem Schiffsnamen) und legt es
+verschlüsselt ab. Passt das Bild nicht, trägt man in „Bild“ den Artikel ein, z. B. `de:Mein Schiff 1 (Schiff, 2018)`
+oder `en:Royal Princess (2013)`. Preise, Buchungs- und Ticketnummern gehören in keinen dieser Tabs.
 
 Automatisch ergänzt der Build für vergangene Hafentage das Wetter (Höchst-/Tiefstwert, Regen, Wind) und die Zeitzone
 aus dem historischen Archiv von [Open-Meteo](https://open-meteo.com). Daraus entstehen Fakten wie der wärmste und der
@@ -150,10 +155,11 @@ einfügen und einen GitHub-Token als Skripteigenschaft hinterlegen.
 | `site/assets/geo/` | Ländergrenzen aus Natural Earth (world-atlas 2.0.2) |
 | `scripts/build-data.mjs` | liest das Sheet, prüft die Daten, ergänzt Koordinaten, verschlüsselt |
 | `scripts/photos.mjs` | holt Fotos aus Google Drive, ordnet sie den Stopps zu, verschlüsselt sie |
-| `scripts/enrich.mjs` | Wetter und Zeitzone der Hafentage (Open-Meteo), verschlüsselter Build-Cache |
+| `scripts/enrich.mjs` | Wetter und Zeitzone der Hafentage (Open-Meteo), Schiffsbilder (Wikipedia), verschlüsselter Build-Cache |
 | `scripts/countries.de.json` | deutsche Ländernamen → ISO-Code und Kontinent |
 | `scripts/countryinfo.json` | Währung, Sprache und Steckdosentyp je Land (ISO-Code) |
 | `site/assets/js/seas.js` | grobe Zuordnung der Route zu Meeren und Ozeanen |
+| `site/assets/js/ships.js` | Schiffsübersicht |
 | `.github/workflows/deploy.yml` | Build und Veröffentlichung |
 
 ## Lokal testen

@@ -13,7 +13,7 @@ let photoKey = null;
 const urls = new Map();
 export function setPhotoKey(key) { photoKey = key; }
 
-function photoURL(name) {
+export function photoURL(name) {
   if (!urls.has(name)) {
     urls.set(name, fetch(`photos/${name}.bin`)
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
@@ -33,7 +33,7 @@ const lazy = 'IntersectionObserver' in window ? new IntersectionObserver((entrie
 
 function load(img) {
   photoURL(img.dataset.photo).then((u) => { img.src = u; img.classList.add('ready'); })
-    .catch(() => img.closest('.thumb')?.classList.add('broken'));
+    .catch(() => (img.closest('.thumb') ? img.closest('.thumb').classList.add('broken') : img.remove()));
 }
 
 // ---------- Panel ----------
@@ -63,6 +63,7 @@ export function openTrip(c) {
   panel.querySelector('[data-act="close"]').focus();
   for (const img of panel.querySelectorAll('img[data-photo]')) lazy ? lazy.observe(img) : load(img);
   panel.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => act(b)));
+  panel.querySelectorAll('[data-ship]').forEach((b) => b.addEventListener('click', () => { closeTrip(); ctx.onShowShip(b.dataset.ship); }));
   panel.querySelectorAll('[data-port]').forEach((b) => b.addEventListener('click', () => { closeTrip(); ctx.onShowPort(b.dataset.port); }));
   panel.querySelectorAll('.thumb').forEach((t) => t.addEventListener('click', () => openLightbox(+t.dataset.index)));
 }
@@ -101,7 +102,8 @@ function render(c) {
   ];
 
   const shipHtml = ship ? `<section class="tp-ship">
-      <h3>${esc(c.ship)}</h3>
+      ${ship.img ? `<img class="tp-ship-img" data-photo="${esc(ship.img)}" alt="${esc(c.ship)}">` : ''}
+      <h3>${esc(c.ship)} <button class="link-btn" type="button" data-ship="${esc(c.ship)}">Schiffsübersicht ›</button></h3>
       <dl>
         ${ship.built ? `<div><dt>In Dienst seit</dt><dd>${ship.built}${year >= ship.built ? ` <small>(bei der Reise ${year === ship.built ? 'brandneu' : plural(year - ship.built, 'Jahr', 'Jahre') + ' alt'})</small>` : ''}</dd></div>` : ''}
         ${ship.gt ? `<div><dt>Vermessung</dt><dd>${fmt.format(ship.gt)} BRZ</dd></div>` : ''}
