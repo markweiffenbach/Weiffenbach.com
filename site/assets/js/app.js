@@ -3,6 +3,8 @@ import { columns, hbars, dataTable, esc, fmt } from './charts.js';
 import { TripMap, greatCircle, unwrap } from './map.js';
 import { initTripPanel, openTrip, setPhotoKey } from './trip.js';
 import { initArchive, showArchive } from './archive.js';
+import { seasOf } from './seas.js';
+import { utc } from './diary.js';
 
 const $ = (s) => document.querySelector(s);
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -163,6 +165,9 @@ function prepare(data) {
   for (const x of missed) x.cruise.missed.push(x);
   const diary = (data.diary || []).map((e) => ({ ...e, cruise: e.cruise != null ? byId.get(e.cruise) : null }));
   for (const e of diary) if (e.cruise) e.cruise.diary.push(e);
+  const travel = (data.travel || []).map((t) => ({ ...t, cruise: t.cruise != null ? byId.get(t.cruise) : null }));
+  for (const c of cruises) { c.travel = travel.filter((t) => t.cruise === c); c.aboard = []; }
+  for (const o of data.onboard || []) byId.get(o.cruise)?.aboard.push(o);
   for (const c of cruises) {
     // Route über das Datum bilden: Am Wechseltag gehört der Hafen zu beiden Reisen (Aus- und Einschiffung)
     c.legs = stops.filter((s) => s.type !== 'Landaufenthalt' && s.cruise && c.start <= s.d && s.d <= c.end);
@@ -176,6 +181,9 @@ function prepare(data) {
     c.shipInfo = data.ships?.[c.ship] || null;
     c.photos = (data.photos || []).filter((p) => p.cruise === c.id);
     c.firstCalls = c.legs.filter((s) => s.first);
+    c.seas = c.legs.length ? seasOf(c.legs) : [];
+    c.tz = zones(c.legs);
+    c.flightKm = c.travel.reduce((sum, t) => sum + (t.km || 0), 0);
   }
   // Erstbesuche: Häfen und Länder, die auf dieser Reise zum ersten Mal angelaufen wurden
   const seenPorts = new Set(), seenCountries = new Set();
@@ -185,7 +193,15 @@ function prepare(data) {
     c.portNames.forEach((p) => seenPorts.add(p));
     c.countryNames.forEach((p) => seenCountries.add(p));
   }
-  return { generated: data.generated, cruises, stops, missed, diary, countries: data.countries || {}, ships: data.ships || {} };
+  return { generated: data.generated, cruises, stops, missed, diary, travel, countries: data.countries || {}, ships: data.ships || {} };
+}
+
+// Zeitzonen entlang der Reise (UTC-Versatz der Häfen, aus dem Wetterarchiv): Umstellungen und Spanne
+function zones(legs) {
+  const list = legs.filter((s) => s.tz != null).map((s) => s.tz);
+  let changes = 0, hours = 0;
+  for (let i = 1; i < list.length; i++) if (list[i] !== list[i - 1]) { changes++; hours += Math.abs(list[i] - list[i - 1]); }
+  return { list, changes, hours, min: list.length ? Math.min(...list) : null, max: list.length ? Math.max(...list) : null };
 }
 
 // Überquerungen von Äquator, Wendekreisen, Polarkreis und Datumsgrenze entlang der (Großkreis-)Route
@@ -545,6 +561,31 @@ function extraFacts(m) {
   if (best?.newPorts.length) {
     out.push(['Meiste Erstbesuche', plural(best.newPorts.length, 'neuer Hafen', 'neue Häfen'),
       `${best.ship} ${year(best.start)}${best.newCountries.length ? ` · ${plural(best.newCountries.length, 'neues Land', 'neue Länder')}` : ''}`]);
+  }
+  // Wetter an den Hafentagen
+  const wx = m.stops.filter((s) => s.wx && s.type === 'Hafen' && s.cruise);
+  if (wx.length) {
+    const hot = wx.reduce((a, b) => (b.wx.hi > a.wx.hi ? b : a));
+    const cold = wx.reduce((a, b) => (b.wx.hi < a.wx.hi ? b : a));
+    const wet = wx.reduce((a, b) => ((b.wx.rain ?? 0) > (a.wx.rain ?? 0) ? b : a));
+    const deg = (v) => `${v.toLocaleString('de-DE', { maximumFractionDigits: 1 })} °C`;
+    out.push(['Wärmster Landgang', `${deg(hot.wx.hi)}`, `${hot.port} · ${fmtDate(hot.d)} (${hot.cruise.ship})`]);
+    if (cold !== hot) out.push(['Kältester Landgang', `${deg(cold.wx.hi)}`, `${cold.port} · ${fmtDate(cold.d)} (${cold.cruise.ship})`]);
+    if (wet.wx.rain > 1) out.push(['Nassester Landgang', `${wet.wx.rain.toLocaleString('de-DE', { maximumFractionDigits: 1 })} mm Regen`, `${wet.port} · ${fmtDate(wet.d)} (${wet.cruise.ship})`]);
+  }
+  // Zeitzonen und Meere
+  const tz = m.cruises.filter((c) => c.tz.changes).reduce((a, b) => (b.tz.hours > (a?.tz.hours ?? -1) ? b : a), null);
+  if (tz) out.push(['Meiste Zeitumstellungen', `Uhr ${plural(tz.tz.hours, 'Stunde', 'Stunden')} verstellt`, `${tz.ship} ${year(tz.start)} · ${plural(tz.tz.changes, 'Umstellung', 'Umstellungen')} zwischen ${utc(tz.tz.min)} und ${utc(tz.tz.max)}`]);
+  const seas = new Map();
+  for (const c of m.cruises.filter((x) => !x.planned)) for (const n of c.seas) seas.set(n, (seas.get(n) || 0) + 1);
+  if (seas.size) {
+    const top = [...seas].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n, k]) => `${n} ${k}×`);
+    out.push(['Befahrene Meere', plural(seas.size, 'Meer', 'Meere'), `inkl. Ozeane, grob nach Route · am häufigsten: ${top.join(', ')}`]);
+  }
+  const flights = m.cruises.flatMap((c) => c.travel.filter((t) => t.km));
+  if (flights.length) {
+    const kmSum = flights.reduce((s, t) => s + t.km, 0);
+    out.push(['Geflogen', `${fmt.format(kmSum)} km`, `${plural(flights.length, 'Flug', 'Flüge')} zu und von den Schiffen · ≈ ${(kmSum / 40075).toLocaleString('de-DE', { maximumFractionDigits: 1 })}× um die Erde`]);
   }
   const sea = m.cruises.reduce((a, b) => (b.seaDays > (a?.seaDays ?? -1) ? b : a), null);
   if (sea) out.push(['Meiste Seetage', plural(sea.seaDays, 'Seetag', 'Seetage'), `${sea.ship} · ${sea.route} (${year(sea.start)})`]);

@@ -1,7 +1,7 @@
 // Detailansicht einer Reise (Seitenpanel) mit Tagesverlauf, Reisetagebuch, Schiffsdaten und verschlüsselten Fotos.
 import { esc, fmt } from './charts.js';
 import { decryptBytes } from './crypto.js';
-import { entryHtml, fmtDay, fmtDate, flagEmoji, firstCallBadge } from './diary.js';
+import { entryHtml, fmtDay, fmtDate, flagEmoji, firstCallBadge, stopDetails, utc, kindIcon } from './diary.js';
 
 const $ = (s) => document.querySelector(s);
 const DAY = 86400000;
@@ -108,7 +108,10 @@ function render(c) {
         ${ship.length ? `<div><dt>Länge</dt><dd>${fmt.format(ship.length)} m</dd></div>` : ''}
         ${ship.pax ? `<div><dt>Passagiere</dt><dd>${fmt.format(ship.pax)}</dd></div>` : ''}
         <div><dt>Reederei</dt><dd>${esc(c.line)}</dd></div>
+        ${ship.yard ? `<div><dt>Werft</dt><dd>${esc(ship.yard)}</dd></div>` : ''}
+        ${ship.cls ? `<div><dt>Klasse</dt><dd>${esc(ship.cls)}</dd></div>` : ''}
       </dl>
+      ${ship.sisters ? `<p class="tp-note"><b>Schwesterschiffe:</b> ${esc(ship.sisters)}</p>` : ''}
       ${ship.note ? `<p class="tp-note">${esc(ship.note)}</p>` : ''}
     </section>` : '';
 
@@ -125,7 +128,7 @@ function render(c) {
       const isNew = s.type === 'Hafen' && c.newPorts.includes(s.port) && !seenNew.has(s.port);
       if (isNew) seenNew.add(s.port);
       return `<span class="tp-place">${s.type === 'Passage' ? '<span class="tp-pass">Passage</span> ' : ''}${esc(s.port)}
-        <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(s.country)}</small>${isNew ? '<span class="badge">neu</span>' : ''}${firstCallBadge(s, c.ship)}</span>`;
+        <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(s.country)}</small>${isNew ? '<span class="badge">neu</span>' : ''}${firstCallBadge(s, c.ship)}${stopDetails(s)}</span>`;
     }).join('');
     // Geplante, aber ausgefallene Häfen: durchgestrichen mit Grund
     const missed = c.missed.filter((x) => x.d === d).map((x) => {
@@ -138,12 +141,15 @@ function render(c) {
     // Reisetagebuch des Tages; bei mehreren Orten steht der Ort am Eintrag
     const entries = c.diary.filter((e) => !e.phase && e.d === d);
     const diary = entries.map((e) => entryHtml(e, { port: legs.length !== 1 || e.port !== legs[0].port, archive: true })).join('');
+    // Gebuchtes an Bord (Restaurants, Shows …)
+    const aboard = c.aboard.filter((o) => o.d === d).map((o) => `<li>${kindIcon(o.kind)} <b>${esc(o.name)}</b>${o.kind ? ` <small>${esc(o.kind)}</small>` : ''}${o.note ? ` – ${esc(o.note)}` : ''}</li>`).join('');
     const thumbs = dayPhotos.map(({ p, idx }) => `<button class="thumb" type="button" data-index="${idx}" aria-label="Foto vom ${fmtDate(p.d)} öffnen">
         <img data-photo="${p.t}" alt=""></button>`).join('');
     days.push(`<li class="tp-day${legs.length ? '' : ' sea'}">
         <span class="tp-dot" aria-hidden="true"></span>
         <div class="tp-dayhead"><b>Tag ${n + 1}</b> <span>${fmtDay(d)}</span></div>
         <div class="tp-places">${label}</div>
+        ${aboard ? `<ul class="tp-aboard">${aboard}</ul>` : ''}
         ${diary ? `<div class="tp-diary">${diary}</div>` : ''}
         ${thumbs ? `<div class="tp-thumbs">${thumbs}</div>` : ''}
       </li>`);
@@ -155,6 +161,28 @@ function render(c) {
     return list.length ? `<section class="tp-extra"><h3>${title}</h3><div class="tp-diary">${list.map((e) => entryHtml(e, { date: true, port: true, archive: true })).join('')}</div></section>` : '';
   };
   const entryCount = c.diary.length;
+
+  // Anreise, Rückreise und Hotels
+  const travelHtml = c.travel.length ? `<section class="tp-extra"><h3>Anreise & Unterkünfte${c.flightKm ? ` <small>· ${fmt.format(c.flightKm)} Flugkilometer</small>` : ''}</h3>
+      <ul class="tp-travel">${c.travel.map((t) => `<li>
+        <span class="tp-tdate">${fmtDate(t.d)}</span>
+        <span>${kindIcon(t.kind)} <b>${esc(t.kind)}</b> ${t.from && t.to ? `${esc(t.from)} → ${esc(t.to)}` : esc(t.from || t.to)}
+          ${[t.by, t.km && `${fmt.format(t.km)} km`, t.note].filter(Boolean).map((x) => `<small>${esc(String(x))}</small>`).join(' · ')}</span>
+      </li>`).join('')}</ul></section>` : '';
+
+  // Meere und Zeitzonen
+  const tz = c.tz;
+  const tzText = !tz.list.length ? '' : tz.min === tz.max ? `durchgehend ${utc(tz.min)}`
+    : `${utc(tz.min)} bis ${utc(tz.max)} · ${plural(tz.changes, 'Zeitumstellung', 'Zeitumstellungen')}, zusammen ${plural(tz.hours, 'Stunde', 'Stunden')}`;
+  const route = [
+    c.seas.length && `<div><dt>Befahrene Meere <small>(grob)</small></dt><dd>${c.seas.map(esc).join(' · ')}</dd></div>`,
+    tzText && `<div><dt>Zeitzonen</dt><dd>${tzText}</dd></div>`,
+  ].filter(Boolean).join('');
+  const who = [
+    c.companions && `<div><dt>Mitreisende</dt><dd>${esc(c.companions)}</dd></div>`,
+    c.cabin && `<div><dt>Kabine</dt><dd>${esc(c.cabin)}</dd></div>`,
+  ].filter(Boolean).join('');
+  const infoHtml = route || who ? `<dl class="tp-info">${who}${route}</dl>` : '';
 
   return `
     <header class="tp-head">
@@ -174,7 +202,9 @@ function render(c) {
         <button class="text-btn" type="button" data-act="next" ${i >= list.length - 1 ? 'disabled' : ''}>Nächste ›</button>
       </span>
     </div>
+    ${infoHtml}
     ${shipHtml}
+    ${travelHtml}
     ${extra('vor', 'Vorher an Land')}
     <section>
       <h3>Reiseverlauf${photos.length || entryCount ? ` <small>· ${[photos.length && plural(photos.length, 'Foto', 'Fotos'), entryCount && plural(entryCount, 'Tagebucheintrag', 'Tagebucheinträge')].filter(Boolean).join(' · ')}</small>` : ''}</h3>

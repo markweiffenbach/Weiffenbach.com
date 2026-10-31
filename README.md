@@ -37,6 +37,23 @@ erscheinen in der Reise-Detailansicht beim jeweiligen Tag neben den Fotos; Vor- 
 **Hafen-Archiv** (Knopf oben rechts oder `…/#hafen`): alle Häfen mit unseren Besuchen, Aktivitäten, Tipps, eigenen Links
 sowie Links zu Wikipedia, Wikivoyage, Google Maps und Ausflugsangeboten. Buchungs- oder Ticketnummern gehören nicht
 ins Tagebuch.
+Weitere optionale Tabs reichern die Reisen an:
+
+- **Hafenzeiten**: Datum, Hafen, Ankunft, Abfahrt (Ortszeit) und Tender („ja“, wenn ausgebootet wurde). Erscheint als
+  Liegezeit am Hafentag, im Reiseverlauf und im Hafen-Archiv.
+- **Anreise**: Datum, Art (Flug, Zug, Auto, Transfer, Hotel …), Von, Nach, Anbieter (Airline, Hotelname) und Hinweis.
+  Bei Hotels steht der Ort unter „Von“. Für Flüge berechnet der Build die Flugkilometer.
+- **An Bord**: Datum, Art (Restaurant, Show, Spa …), Name und Hinweis, z. B. gebuchte Restaurants und Shows.
+
+Dazu kommen in **Kreuzfahrten** die Spalten „Mitreisende“ und „Kabine“ sowie in **Schiffe** „Werft“, „Klasse“ und
+„Schwesterschiffe“. Preise, Buchungs- und Ticketnummern gehören in keinen dieser Tabs.
+
+Automatisch ergänzt der Build für vergangene Hafentage das Wetter (Höchst-/Tiefstwert, Regen, Wind) und die Zeitzone
+aus dem historischen Archiv von [Open-Meteo](https://open-meteo.com). Daraus entstehen Fakten wie der wärmste und der
+kälteste Landgang und die Zeitumstellungen je Reise. Die befahrenen Meere ermittelt die Seite grob aus der Route.
+Im Hafen-Archiv stehen zu jedem Land Währung, Sprache, Steckdosentyp und Zeitzone (aus `scripts/countryinfo.json`).
+Wetter und Koordinaten landen verschlüsselt im Build-Cache, damit jeder Tag nur einmal abgefragt wird.
+
 Die Homepage übernimmt die Änderungen jede Nacht. Sofort geht es über GitHub → **Actions** →
 „Homepage aktualisieren“ → **Run workflow** (oder über das optionale Menü im Sheet, siehe unten).
 
@@ -46,8 +63,8 @@ Die Homepage übernimmt die Änderungen jede Nacht. Sofort geht es über GitHub 
 
 Im Sheet: **Datei → Freigeben → Im Web veröffentlichen**
 1. Unter „Veröffentlichte Inhalte und Einstellungen“ statt „Gesamtes Dokument“ nur **Kreuzfahrten**, **Stopps**, **Schiffe**,
-   **Ausgefallen** und **Tagebuch** auswählen („Schiffe“, „Ausgefallen“ und „Tagebuch“ sind optional: ohne sie fehlen nur die
-   Schiffsdaten, die ausgefallenen Häfen bzw. das Reisetagebuch und Hafen-Archiv).
+   **Ausgefallen**, **Tagebuch**, **Hafenzeiten**, **Anreise** und **An Bord** auswählen (alle außer „Kreuzfahrten“ und
+   „Stopps“ sind optional: ohne sie fehlen nur die jeweiligen Angaben auf der Homepage).
 2. Format: **Kommagetrennte Werte (.csv)** → **Veröffentlichen**.
 3. Den angezeigten Link kopieren (beginnt mit `https://docs.google.com/spreadsheets/d/e/2PACX-…`).
 
@@ -133,7 +150,10 @@ einfügen und einen GitHub-Token als Skripteigenschaft hinterlegen.
 | `site/assets/geo/` | Ländergrenzen aus Natural Earth (world-atlas 2.0.2) |
 | `scripts/build-data.mjs` | liest das Sheet, prüft die Daten, ergänzt Koordinaten, verschlüsselt |
 | `scripts/photos.mjs` | holt Fotos aus Google Drive, ordnet sie den Stopps zu, verschlüsselt sie |
+| `scripts/enrich.mjs` | Wetter und Zeitzone der Hafentage (Open-Meteo), verschlüsselter Build-Cache |
 | `scripts/countries.de.json` | deutsche Ländernamen → ISO-Code und Kontinent |
+| `scripts/countryinfo.json` | Währung, Sprache und Steckdosentyp je Land (ISO-Code) |
+| `site/assets/js/seas.js` | grobe Zuordnung der Route zu Meeren und Ozeanen |
 | `.github/workflows/deploy.yml` | Build und Veröffentlichung |
 
 ## Lokal testen
