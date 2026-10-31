@@ -3,6 +3,7 @@ import { columns, hbars, dataTable, esc, fmt } from './charts.js';
 import { TripMap, greatCircle, unwrap } from './map.js';
 import { initTripPanel, openTrip, setPhotoKey } from './trip.js';
 import { initArchive, showArchive } from './archive.js';
+import { initShips, showShips } from './ships.js';
 import { seasOf } from './seas.js';
 import { utc } from './diary.js';
 
@@ -128,9 +129,11 @@ function start(data, key) {
       state.selected = null; selectCruise(id); $('.card-map').scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
     onShowPort: showPort,
+    onShowShip: showShip,
   });
   render();
   initArchive({ data: DATA, onOpenTrip: (id) => openTrip(DATA.cruises[id]) });
+  initShips({ data: DATA, onOpenTrip: (id) => openTrip(DATA.cruises[id]) });
   window.addEventListener('hashchange', route);
   route();
 }
@@ -138,11 +141,17 @@ function start(data, key) {
 // Zwei Ansichten: Übersicht (ohne Hash) und Hafen-Archiv (#hafen, #hafen/<Hafen>)
 function route() {
   const m = location.hash.match(/^#hafen(?:\/(.+))?$/);
-  const view = m ? 'archive' : 'dash';
+  const sh = location.hash.match(/^#schiffe(?:\/(.+))?$/);
+  const view = m ? 'archive' : sh ? 'ships' : 'dash';
   const changed = $('#app').dataset.view !== view;
   $('#app').dataset.view = view;
   if (m) showArchive(m[1] ? decodeURIComponent(m[1]) : null);
+  else if (sh) showShips(sh[1] ? decodeURIComponent(sh[1]) : null);
   else if (changed) { window.scrollTo(0, 0); map.map.invalidateSize(); }
+}
+function showShip(name) {
+  const hash = `#schiffe/${encodeURIComponent(name)}`;
+  if (location.hash === hash) route(); else location.hash = hash;
 }
 function showPort(port) {
   const hash = `#hafen/${encodeURIComponent(port)}`;

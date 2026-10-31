@@ -77,7 +77,7 @@ async function download(f, size, token) {
   return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
 }
 
-async function encryptBytes(bytes, key) {
+export async function encryptBytes(bytes, key) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes);
   return Buffer.concat([Buffer.from(iv), Buffer.from(ct)]);

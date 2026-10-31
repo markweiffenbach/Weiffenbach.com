@@ -23,8 +23,8 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { webcrypto as crypto, createHash } from 'node:crypto';
-import { collectPhotos, collectLocalPhotos } from './photos.mjs';
-import { loadCache, saveCache, addWeather } from './enrich.mjs';
+import { collectPhotos, collectLocalPhotos, encryptBytes } from './photos.mjs';
+import { loadCache, saveCache, addWeather, addShipImages } from './enrich.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -186,7 +186,7 @@ async function loadSource() {
   let ships = [];
   try {
     ships = table(await fetchCSV(process.env.GID_SCHIFFE || '1500', 'Schiffe'),
-      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis', 'Werft', 'Klasse', 'Schwesterschiffe']);
+      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis', 'Werft', 'Klasse', 'Schwesterschiffe', 'Bild']);
   } catch (e) {
     warn(`Schiffsdaten nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
   }
@@ -334,7 +334,7 @@ async function build() {
     // Ganzzahlen kommen im deutschen Sheet mit Tausenderpunkt („42.289“)
     const int = (v) => { const n = parseInt(String(v ?? '').replace(/[^\d-]/g, ''), 10); return Number.isFinite(n) ? n : null; };
     ships[r.Schiff] = { built: int(r.Indienststellung), gt: int(r.BRZ), length: parseNum(r['Länge (m)']),
-      pax: int(r.Passagiere), note: r.Hinweis || '', yard: r.Werft || '', cls: r.Klasse || '', sisters: r.Schwesterschiffe || '' };
+      pax: int(r.Passagiere), note: r.Hinweis || '', yard: r.Werft || '', cls: r.Klasse || '', sisters: r.Schwesterschiffe || '', imgSrc: r.Bild || '' };
   }
   for (const name of new Set(cruises.map((c) => c.ship))) {
     if (src.ships.length && !ships[name]) warn(`Schiffe: „${name}“ fehlt im Tab „Schiffe“ – bitte Zeile ergänzen.`);
@@ -472,9 +472,15 @@ const key = await deriveKey(password);
 // Der Cache enthält Orte und Daten der Reisen und liegt daher ebenfalls verschlüsselt vor
 cache = await loadCache(CACHE_DIR, key);
 const data = await build();
-await saveCache(CACHE_DIR, cache, key);
 // Kennung des Schlüssels für Foto-Dateinamen und Cache (verrät nichts über das Passwort)
 const keyId = createHash('sha256').update(Buffer.from(await crypto.subtle.exportKey('raw', key))).digest('hex').slice(0, 16);
+
+// Schiffsbilder (Wikipedia), verschlüsselt wie die Fotos
+{
+  const si = await addShipImages(data.ships, cache, { key, keyId, outDir: OUT, encryptBytes, offline: !!FROM_JSON });
+  console.log(`ℹ Schiffsbilder: ${si.fetched} neu geladen, ${si.missing} ohne Bild.`);
+}
+await saveCache(CACHE_DIR, cache, key);
 
 const photoArgs = { key, keyId, cruises: data.cruises, stops: data.stops, outDir: OUT, warn };
 data.photos = PHOTOS_DIR
