@@ -7,6 +7,8 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 - **Mit Passwort** öffnet sich das Dashboard: Weltkarte mit Routen und Häfen, Kennzahlen, Diagramme,
   Länder-Sammlung, Rekorde (auch Tender, Liegezeiten und Nächte im Hafen), ausgefallene Häfen, Logbuch aller Reisen
   und „Heute vor X Jahren“ (welche Reise an diesem Kalendertag lief, sonst der nächste solche Tag im kommenden Monat).
+  Kacheln, Rekorde, Diagrammbalken und Länder-Flaggen sind anklickbar und führen zur passenden Reise, zum Hafen, zum
+  Schiff, ins Hafen-Archiv oder setzen den Filter (z. B. Jahr, Reederei, Fahrtgebiet).
 - Die Reisedaten liegen **nur verschlüsselt** auf dem Server (AES-256-GCM, Schlüssel per PBKDF2 aus dem Passwort abgeleitet).
   Ohne Passwort lassen sie sich nicht lesen, auch nicht im Quelltext.
 

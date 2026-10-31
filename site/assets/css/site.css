@@ -527,3 +527,15 @@ html.no-scroll { overflow: hidden; }
 .memory-photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
 .memory-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--surface-2); opacity: 0; transition: opacity .3s; }
 .memory-photos img.ready { opacity: 1; }
+
+/* ---------- Anklickbare Kacheln, Rekorde und Balken ---------- */
+[data-go] { cursor: pointer; }
+.kpi[data-go], .fact[data-go], .flag[data-go] { transition: border-color .15s, background-color .15s, transform .15s; }
+.kpi[data-go]:hover, .fact[data-go]:hover { border-color: var(--accent, var(--ink-2)); }
+.kpi[data-go]:hover .kpi-label::after, .fact[data-go]:hover .fact-label::after { content: ' ›'; }
+.flag[data-go]:hover { background: var(--accent-wash); }
+.next[data-go]:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .24); }
+.next[data-go] .next-title::after { content: ' ›'; color: #9fc6f2; }
+[data-go]:focus-visible { outline: 2px solid var(--accent, #2a6fdb); outline-offset: 2px; }
+.hit.go:hover { fill: var(--accent-wash); }
+.chart .hit.go { cursor: pointer; }

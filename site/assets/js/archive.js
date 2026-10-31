@@ -85,6 +85,13 @@ export function initArchive(context) {
   render();
 }
 
+/** Suche und Kontinent im Hafen-Archiv vorgeben (z. B. von einer Kachel der Übersicht aus). */
+export function filterArchive({ q = '', k = '' } = {}) {
+  Object.assign(ui, { q: q.toLowerCase(), k, onlyDiary: false });
+  $('#a-q').value = q; $('#a-k').value = k; $('#a-diary').checked = false;
+  render();
+}
+
 /** Ansicht zeigen; mit port wird dieser Hafen geöffnet und angesprungen. */
 export function showArchive(port) {
   if (port) {
