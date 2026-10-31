@@ -135,7 +135,7 @@ export async function collectPhotos({ key, keyId, cruises, stops, outDir, cacheD
   }
   photos.sort((a, b) => (a.d + a.time).localeCompare(b.d + b.time));
   // Cache klein halten: gelöschte Fotos und alte Passwörter entfernen
-  for (const f of await readdir(cacheDir)) if (!used.has(f)) await unlink(path.join(cacheDir, f));
+  for (const f of await readdir(cacheDir)) if (f.endsWith('.bin') && !used.has(f)) await unlink(path.join(cacheDir, f));
   console.log(`✓ ${photos.length} Fotos (${cached} Dateien aus dem Cache).`);
   if (undated) warn(`${undated} Fotos ohne Aufnahmedatum übersprungen.`);
   if (unmatched) warn(`${unmatched} Fotos passen zu keiner Reise und keinem Landaufenthalt.`);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Liest die Tabs „Kreuzfahrten“, „Stopps“, „Schiffe“, „Ausgefallen“ und „Tagebuch“ aus dem Google Sheet, prüft und ergänzt die Daten
+// Liest die Tabs „Kreuzfahrten“, „Stopps“, „Schiffe“, „Ausgefallen“, „Tagebuch“, „Hafenzeiten“, „Anreise“ und „An Bord“
+// aus dem Google Sheet, prüft und ergänzt die Daten
 // und schreibt sie AES-verschlüsselt nach <out>/data/data.enc.json.
 //
 // Umgebungsvariablen:
@@ -10,16 +11,20 @@
 //   GID_SCHIFFE        optional, Standard 1500
 //   GID_AUSGEFALLEN    optional, Standard 1600
 //   GID_TAGEBUCH       optional, Standard 1700
+//   GID_HAFENZEITEN    optional, Standard 1800
+//   GID_ANREISE        optional, Standard 1900
+//   GID_ANBORD         optional, Standard 2000
 // Optionen:
 //   --out <dir>        Zielordner (Standard: _site)
-//   --from-json <file> lokale Testdaten statt Sheet ({cruises, stops, ships?, missed?, diary?} im Seed-Format)
+//   --from-json <file> lokale Testdaten statt Sheet ({cruises, stops, ships?, missed?, diary?, times?, travel?, onboard?} im Seed-Format)
 //   --plain            zusätzlich unverschlüsselte data.json schreiben (nur lokal!)
 //   --photos-dir <dir> lokale Testfotos statt Google Drive (siehe scripts/photos.mjs)
-//   --photo-cache <d>  Cache-Ordner für verschlüsselte Fotos (Standard: .photo-cache)
+//   --photo-cache <d>  Cache-Ordner für verschlüsselte Fotos, Wetter und Koordinaten (Standard: .photo-cache)
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { webcrypto as crypto, createHash } from 'node:crypto';
 import { collectPhotos, collectLocalPhotos } from './photos.mjs';
+import { loadCache, saveCache, addWeather } from './enrich.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,6 +35,8 @@ const OUT = opt('--out') || '_site';
 const FROM_JSON = opt('--from-json');
 const PLAIN = args.includes('--plain');
 const PHOTOS_DIR = opt('--photos-dir'); // nur lokal: Ordner mit manifest.json statt Google Drive
+const CACHE_DIR = opt('--photo-cache') || '.photo-cache';
+let cache = {}; // Wetter und Koordinaten aus früheren Läufen
 
 // Muss mit site/assets/js/crypto.js übereinstimmen
 const KDF = { salt: 'weiffenbach.com/schiffsurlaube/v1', iterations: 310000 };
@@ -100,6 +107,28 @@ function parseNum(s) {
   return Number.isFinite(n) ? n : null;
 }
 const days = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+// Uhrzeit aus „08:00 Uhr“, „8:00 a. m.“, „17.00“ → „08:00“
+function clock(s) {
+  const m = String(s || '').match(/(\d{1,2})[:.](\d{2})/);
+  if (!m) return '';
+  let h = +m[1];
+  if (/p\.?\s?m/i.test(s) && h < 12) h += 12;
+  if (/a\.?\s?m/i.test(s) && h === 12) h = 0;
+  return h < 24 && +m[2] < 60 ? `${String(h).padStart(2, '0')}:${m[2]}` : '';
+}
+const yes = (v) => /^(ja|x|1|true|wahr)/i.test(String(v || '').trim());
+function km(a, b) {
+  const r = Math.PI / 180;
+  const h = Math.sin(((b.lat - a.lat) * r) / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(((b.lng - a.lng) * r) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+// Hafennamen vergleichen: gleiche Schreibweise oder gemeinsames markantes Wort („Yokohama (Tokio)“ ~ „Tokio“)
+const GENERIC = new Set(['port', 'porto', 'puerto', 'san', 'santa', 'santo', 'saint', 'sankt', 'bay', 'isla', 'ilha', 'island', 'grand', 'grande', 'new', 'city']);
+const words = (p) => p.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
+const findStop = (stops, d, port) => {
+  const w = words(port);
+  return stops.find((s) => s.d === d && s.port === port) || stops.find((s) => s.d === d && words(s.port).some((x) => w.includes(x)));
+};
 
 // ---------- Quelle ----------
 // Akzeptiert jeden Google-Sheets-Link: „Im Web veröffentlichen“ (…/d/e/2PACX…/pub, pubhtml, pub?output=csv)
@@ -135,7 +164,7 @@ async function loadSource() {
     const seed = JSON.parse(await readFile(FROM_JSON, 'utf8'));
     return {
       cruises: seed.cruises.map((c, i) => ({ _row: i + 2, Start: c.start, Ende: c.ende, Schiff: c.schiff, Reederei: c.reederei,
-        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '' })),
+        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '', Mitreisende: c.mitreisende || '', Kabine: c.kabine || '' })),
       stops: seed.stops.map((s, i) => ({ _row: i + 2, Datum: s.datum, Hafen: s.hafen, Land: s.land, Art: s.typ,
         Breite: String(s.lat), 'Länge': String(s.lng), Erstanlauf: s.erstanlauf || '', 'Erstanlauf Quelle': s.erstanlaufQuelle || '' })),
       ships: (seed.ships || []).map((x, i) => ({ _row: i + 2, ...x })),
@@ -144,6 +173,9 @@ async function loadSource() {
         Breite: m.lat != null ? String(m.lat) : '', 'Länge': m.lng != null ? String(m.lng) : '' })),
       diary: (seed.diary || []).map((e, i) => ({ _row: i + 2, Datum: e.datum, Hafen: e.hafen || '', Titel: e.titel || '',
         Tagebuch: e.text || '', Tipps: e.tipps || '', Links: e.links || '', Art: e.art || '' })),
+      times: (seed.times || []).map((t, i) => ({ _row: i + 2, Datum: t.datum, Hafen: t.hafen, Ankunft: t.ankunft || '', Abfahrt: t.abfahrt || '', Tender: t.tender || '' })),
+      travel: (seed.travel || []).map((t, i) => ({ _row: i + 2, Datum: t.datum, Art: t.art, Von: t.von || '', Nach: t.nach || '', Anbieter: t.anbieter || '', Hinweis: t.hinweis || '' })),
+      onboard: (seed.onboard || []).map((t, i) => ({ _row: i + 2, Datum: t.datum, Art: t.art, Name: t.name, Hinweis: t.hinweis || '' })),
     };
   }
   const [k, s] = await Promise.all([
@@ -154,7 +186,7 @@ async function loadSource() {
   let ships = [];
   try {
     ships = table(await fetchCSV(process.env.GID_SCHIFFE || '1500', 'Schiffe'),
-      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis']);
+      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis', 'Werft', 'Klasse', 'Schwesterschiffe']);
   } catch (e) {
     warn(`Schiffsdaten nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
   }
@@ -174,18 +206,38 @@ async function loadSource() {
   } catch (e) {
     warn(`Reisetagebuch nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne es gebaut.`);
   }
+  // Ebenso optional: Liegezeiten, Anreise & Unterkünfte, Buchungen an Bord
+  const optional = async (gid, tab, required, opt) => {
+    try { return table(await fetchCSV(gid, tab), required, tab, opt); } catch (e) {
+      warn(`Tab „${tab}“ nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne ihn gebaut.`);
+      return [];
+    }
+  };
+  const times = await optional(process.env.GID_HAFENZEITEN || '1800', 'Hafenzeiten', ['Datum', 'Hafen'], ['Ankunft', 'Abfahrt', 'Tender']);
+  const travel = await optional(process.env.GID_ANREISE || '1900', 'Anreise', ['Datum', 'Art'], ['Von', 'Nach', 'Anbieter', 'Hinweis']);
+  const onboard = await optional(process.env.GID_ANBORD || '2000', 'An Bord', ['Datum', 'Art', 'Name'], ['Hinweis']);
   return {
-    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten'),
+    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten', ['Mitreisende', 'Kabine']),
     stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps', ['Erstanlauf', 'Erstanlauf Quelle']),
     ships,
     missed,
     diary,
+    times,
+    travel,
+    onboard,
   };
 }
 
 // ---------- Geocoding für neue Häfen ----------
 async function geocode(port, country) {
   const q = [port.replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim(), country].filter(Boolean).join(', ');
+  cache.geo ||= {};
+  if (cache.geo[q]) return cache.geo[q];
+  const g = await geocodeOnline(q);
+  if (g) cache.geo[q] = g;
+  return g;
+}
+async function geocodeOnline(q) {
   const u = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&accept-language=de&q=${encodeURIComponent(q)}`;
   try {
     await new Promise((r) => setTimeout(r, 1100)); // Nutzungsrichtlinie: max. 1 Anfrage/Sekunde
@@ -208,7 +260,8 @@ async function build() {
     if (!start || !end) { warn(`Kreuzfahrten, Zeile ${r._row}: Start oder Ende ist kein gültiges Datum – Zeile übersprungen.`); continue; }
     if (end < start) { warn(`Kreuzfahrten, Zeile ${r._row}: Ende liegt vor Start – Zeile übersprungen.`); continue; }
     cruises.push({ start, end, nights: days(start, end), ship: r.Schiff || 'Unbekannt', line: r.Reederei || 'Unbekannt',
-      route: r.Route || '', region: r.Fahrtgebiet || 'Sonstige', note: r.Bemerkung || '' });
+      route: r.Route || '', region: r.Fahrtgebiet || 'Sonstige', note: r.Bemerkung || '',
+      companions: r.Mitreisende || '', cabin: r.Kabine || '' });
   }
   cruises.sort((a, b) => a.start.localeCompare(b.start));
   cruises.forEach((c, i) => { c.id = i; });
@@ -217,6 +270,15 @@ async function build() {
     let hit = null;
     for (const c of cruises) if (c.start <= d && d <= c.end) hit = c; // bei Wechseltag zählt die neue Reise
     return hit;
+  };
+  // Reise eines Datums, auch für Vor- und Nachprogramm bis 10 Tage vor bzw. nach der Reise
+  const NEAR = 10;
+  const nearCruise = (d) => {
+    const c = findCruise(d);
+    if (c) return { c, phase: '' };
+    const near = cruises.map((x) => (d < x.start ? { c: x, gap: days(d, x.start), phase: 'vor' } : { c: x, gap: days(x.end, d), phase: 'nach' }))
+      .filter((n) => n.gap <= NEAR).sort((a, b) => a.gap - b.gap)[0];
+    return near || { c: null, phase: '' };
   };
 
   const coordsByPort = new Map();
@@ -272,7 +334,7 @@ async function build() {
     // Ganzzahlen kommen im deutschen Sheet mit Tausenderpunkt („42.289“)
     const int = (v) => { const n = parseInt(String(v ?? '').replace(/[^\d-]/g, ''), 10); return Number.isFinite(n) ? n : null; };
     ships[r.Schiff] = { built: int(r.Indienststellung), gt: int(r.BRZ), length: parseNum(r['Länge (m)']),
-      pax: int(r.Passagiere), note: r.Hinweis || '' };
+      pax: int(r.Passagiere), note: r.Hinweis || '', yard: r.Werft || '', cls: r.Klasse || '', sisters: r.Schwesterschiffe || '' };
   }
   for (const name of new Set(cruises.map((c) => c.ship))) {
     if (src.ships.length && !ships[name]) warn(`Schiffe: „${name}“ fehlt im Tab „Schiffe“ – bitte Zeile ergänzen.`);
@@ -305,9 +367,6 @@ async function build() {
   missed.sort((a, b) => a.d.localeCompare(b.d));
 
   // Reisetagebuch: Einträge an Reisetagen gehören zur Reise, Vor- und Nachprogramm (bis 10 Tage davor/danach) ebenso
-  const NEAR = 10;
-  const GENERIC = new Set(['port', 'porto', 'puerto', 'san', 'santa', 'santo', 'saint', 'sankt', 'bay', 'isla', 'ilha', 'island', 'grand', 'grande', 'new', 'city']);
-  const words = (p) => p.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
   const countryByA2 = new Map(Object.entries(countryTable).map(([name, m]) => [m.a2, name]));
   const knownPorts = new Set([...stops.map((s) => s.port), ...missed.map((x) => x.port)]);
   const placeInfo = new Map(); // Orte nur aus dem Tagebuch (z. B. Vorprogramm in Las Vegas)
@@ -317,16 +376,10 @@ async function build() {
     const d = parseDate(r.Datum);
     if (!d) { warn(`Tagebuch, Zeile ${r._row}: Datum ungültig – Zeile übersprungen.`); continue; }
     if (!r.Titel && !r.Tagebuch) { warn(`Tagebuch, Zeile ${r._row}: Titel und Text fehlen – Zeile übersprungen.`); continue; }
-    let c = findCruise(d), phase = '';
-    if (!c) {
-      const near = cruises.map((x) => (d < x.start ? { x, gap: days(d, x.start), phase: 'vor' } : { x, gap: days(x.end, d), phase: 'nach' }))
-        .filter((n) => n.gap <= NEAR).sort((a, b) => a.gap - b.gap)[0];
-      if (near) ({ x: c, phase } = near);
-    }
+    const { c, phase } = nearCruise(d);
     // Hafenname wie in „Stopps“, damit das Hafen-Archiv die Besuche zusammenführt (z. B. „Yokohama (Tokio)“ → „Tokio“)
     let port = r.Hafen;
-    const w = port ? words(port) : [];
-    const same = port && (stops.find((s) => s.d === d && s.port === port) || stops.find((s) => s.d === d && words(s.port).some((x) => w.includes(x))));
+    const same = port && findStop(stops, d, port);
     if (same) port = same.port;
     else if (port && !knownPorts.has(port)) {
       if (!placeInfo.has(port)) {
@@ -345,7 +398,55 @@ async function build() {
   }
   diary.sort((a, b) => a.d.localeCompare(b.d));
 
-  return { generated: new Date().toISOString(), cruises, stops, missed, diary, countries, ships, warnings: warnings.length };
+  // Liegezeiten und Tender am jeweiligen Hafentag
+  let timed = 0;
+  for (const r of src.times) {
+    if (!r.Datum && !r.Hafen) continue;
+    const d = parseDate(r.Datum);
+    const s = d && r.Hafen && findStop(stops, d, r.Hafen);
+    if (!s) { warn(`Hafenzeiten, Zeile ${r._row}: kein passender Stopp am selben Tag – Zeile übersprungen.`); continue; }
+    const arr = clock(r.Ankunft), dep = clock(r.Abfahrt);
+    if (arr) s.arr = arr;
+    if (dep) s.dep = dep;
+    if (yes(r.Tender)) s.tender = true;
+    timed++;
+  }
+
+  // Anreise & Unterkünfte (Flug, Zug, Hotel …) und Buchungen an Bord (Restaurants, Shows …)
+  const travel = [];
+  for (const r of src.travel) {
+    if (!r.Datum && !r.Art) continue;
+    const d = parseDate(r.Datum);
+    if (!d || !r.Art) { warn(`Anreise, Zeile ${r._row}: Datum oder Art fehlt – Zeile übersprungen.`); continue; }
+    const { c } = nearCruise(d);
+    const item = { d, kind: r.Art, from: r.Von || '', to: r.Nach || '', by: r.Anbieter || '', note: r.Hinweis || '', cruise: c ? c.id : null };
+    if (/flug/i.test(r.Art) && item.from && item.to) {
+      const a = await geocode(item.from, ''), b = await geocode(item.to, '');
+      if (a && b) item.km = Math.round(km(a, b));
+    }
+    travel.push(item);
+  }
+  travel.sort((a, b) => a.d.localeCompare(b.d));
+  const onboard = [];
+  for (const r of src.onboard) {
+    if (!r.Datum && !r.Name) continue;
+    const d = parseDate(r.Datum);
+    const c = d && findCruise(d);
+    if (!c || !r.Name) { warn(`An Bord, Zeile ${r._row}: Datum liegt in keiner Reise oder Name fehlt – Zeile übersprungen.`); continue; }
+    onboard.push({ d, kind: r.Art || '', name: r.Name, note: r.Hinweis || '', cruise: c.id });
+  }
+  onboard.sort((a, b) => a.d.localeCompare(b.d));
+
+  // Wetter und Zeitzone der vergangenen Hafentage
+  const wx = await addWeather(stops, cache);
+  console.log(`ℹ Wetter: ${wx.fetched} Tage neu abgefragt${wx.failed ? `, ${wx.failed} nicht verfügbar` : ''}.`);
+
+  // Länder-Kurzinfos (Währung, Sprache, Steckdose)
+  const info = JSON.parse(await readFile(path.join(here, 'countryinfo.json'), 'utf8'));
+  for (const c of Object.values(countries)) if (info[c.a2]) Object.assign(c, info[c.a2]);
+
+  console.log(`ℹ ${timed} Hafenzeiten, ${travel.length} Anreise-Einträge, ${onboard.length} Buchungen an Bord.`);
+  return { generated: new Date().toISOString(), cruises, stops, missed, diary, travel, onboard, countries, ships, warnings: warnings.length };
 }
 
 // ---------- Verschlüsselung ----------
@@ -356,7 +457,7 @@ async function deriveKey(password) {
   const base = await crypto.subtle.importKey('raw', enc.encode(password.trim().normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(KDF.salt), iterations: KDF.iterations },
-    base, { name: 'AES-GCM', length: 256 }, true, ['encrypt']);
+    base, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
 }
 async function encrypt(obj, key) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -364,18 +465,21 @@ async function encrypt(obj, key) {
   return { v: 1, alg: 'AES-GCM', kdf: 'PBKDF2-SHA256', iterations: KDF.iterations, iv: b64(iv), ct: b64(ct) };
 }
 
-const data = await build();
 const password = process.env.SITE_PASSWORD;
 if (!password) throw new Error('SITE_PASSWORD ist nicht gesetzt.');
 if (password.trim().length < 10) warn('SITE_PASSWORD ist kürzer als 10 Zeichen – ein längeres Passwort schützt deutlich besser.');
 const key = await deriveKey(password);
+// Der Cache enthält Orte und Daten der Reisen und liegt daher ebenfalls verschlüsselt vor
+cache = await loadCache(CACHE_DIR, key);
+const data = await build();
+await saveCache(CACHE_DIR, cache, key);
 // Kennung des Schlüssels für Foto-Dateinamen und Cache (verrät nichts über das Passwort)
 const keyId = createHash('sha256').update(Buffer.from(await crypto.subtle.exportKey('raw', key))).digest('hex').slice(0, 16);
 
 const photoArgs = { key, keyId, cruises: data.cruises, stops: data.stops, outDir: OUT, warn };
 data.photos = PHOTOS_DIR
   ? await collectLocalPhotos({ ...photoArgs, dir: PHOTOS_DIR })
-  : await collectPhotos({ ...photoArgs, cacheDir: opt('--photo-cache') || '.photo-cache' });
+  : await collectPhotos({ ...photoArgs, cacheDir: CACHE_DIR });
 
 await mkdir(path.join(OUT, 'data'), { recursive: true });
 await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt(data, key)));

@@ -1,0 +1,1197 @@
+{
+"AD": {
+"cur": "EUR",
+"lang": "Katalanisch",
+"plug": "C, F"
+},
+"AE": {
+"cur": "AED",
+"lang": "Arabisch",
+"plug": "G"
+},
+"AF": {
+"cur": "AFN",
+"lang": "Paschtu, Dari",
+"plug": "C, F"
+},
+"AG": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"AI": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"AL": {
+"cur": "ALL",
+"lang": "Albanisch",
+"plug": "C, F"
+},
+"AM": {
+"cur": "AMD",
+"lang": "Armenisch",
+"plug": "C, F"
+},
+"AO": {
+"cur": "AOA",
+"lang": "Portugiesisch",
+"plug": "C"
+},
+"AR": {
+"cur": "ARS",
+"lang": "Spanisch",
+"plug": "C, I"
+},
+"AS": {
+"cur": "USD",
+"lang": "Englisch, Samoanisch",
+"plug": "A, B, F, I"
+},
+"AT": {
+"cur": "EUR",
+"lang": "Deutsch",
+"plug": "C, F"
+},
+"AU": {
+"cur": "AUD",
+"lang": "Englisch",
+"plug": "I"
+},
+"AW": {
+"cur": "AWG",
+"lang": "Niederländisch, Papiamento",
+"plug": "A, B, F"
+},
+"AX": {
+"cur": "EUR",
+"lang": "Schwedisch",
+"plug": "C, F"
+},
+"AZ": {
+"cur": "AZN",
+"lang": "Aserbaidschanisch",
+"plug": "C, F"
+},
+"BA": {
+"cur": "BAM",
+"lang": "Bosnisch, Kroatisch, Serbisch",
+"plug": "C, F"
+},
+"BB": {
+"cur": "BBD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"BD": {
+"cur": "BDT",
+"lang": "Bengalisch",
+"plug": "C, D, G, K"
+},
+"BE": {
+"cur": "EUR",
+"lang": "Niederländisch, Französisch, Deutsch",
+"plug": "C, E"
+},
+"BF": {
+"cur": "XOF",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"BG": {
+"cur": "BGN",
+"lang": "Bulgarisch",
+"plug": "C, F"
+},
+"BH": {
+"cur": "BHD",
+"lang": "Arabisch",
+"plug": "G"
+},
+"BI": {
+"cur": "BIF",
+"lang": "Kirundi, Französisch",
+"plug": "C, E"
+},
+"BJ": {
+"cur": "XOF",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"BL": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"BM": {
+"cur": "BMD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"BN": {
+"cur": "BND",
+"lang": "Malaiisch",
+"plug": "G"
+},
+"BO": {
+"cur": "BOB",
+"lang": "Spanisch",
+"plug": "A, C"
+},
+"BQ": {
+"cur": "USD",
+"lang": "Niederländisch, Papiamento",
+"plug": "A, B, C, F"
+},
+"BR": {
+"cur": "BRL",
+"lang": "Portugiesisch",
+"plug": "C, N"
+},
+"BS": {
+"cur": "BSD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"BT": {
+"cur": "BTN",
+"lang": "Dzongkha",
+"plug": "C, D, F, G, M"
+},
+"BW": {
+"cur": "BWP",
+"lang": "Englisch, Setswana",
+"plug": "D, G, M"
+},
+"BY": {
+"cur": "BYN",
+"lang": "Belarussisch, Russisch",
+"plug": "C, F"
+},
+"BZ": {
+"cur": "BZD",
+"lang": "Englisch",
+"plug": "A, B, G"
+},
+"CA": {
+"cur": "CAD",
+"lang": "Englisch, Französisch",
+"plug": "A, B"
+},
+"CC": {
+"cur": "AUD",
+"lang": "Englisch",
+"plug": "I"
+},
+"CF": {
+"cur": "XAF",
+"lang": "Französisch, Sango",
+"plug": "C, E"
+},
+"CG": {
+"cur": "XAF",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"CH": {
+"cur": "CHF",
+"lang": "Deutsch, Französisch, Italienisch",
+"plug": "C, J"
+},
+"CI": {
+"cur": "XOF",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"CK": {
+"cur": "NZD",
+"lang": "Englisch",
+"plug": "I"
+},
+"CL": {
+"cur": "CLP",
+"lang": "Spanisch",
+"plug": "C, L"
+},
+"CM": {
+"cur": "XAF",
+"lang": "Französisch, Englisch",
+"plug": "C, E"
+},
+"CN": {
+"cur": "CNY",
+"lang": "Chinesisch (Mandarin)",
+"plug": "A, C, I"
+},
+"CO": {
+"cur": "COP",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"CR": {
+"cur": "CRC",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"CU": {
+"cur": "CUP",
+"lang": "Spanisch",
+"plug": "A, B, C, L"
+},
+"CV": {
+"cur": "CVE",
+"lang": "Portugiesisch",
+"plug": "C, F"
+},
+"CW": {
+"cur": "ANG",
+"lang": "Niederländisch, Papiamento",
+"plug": "A, B"
+},
+"CX": {
+"cur": "AUD",
+"lang": "Englisch",
+"plug": "I"
+},
+"CY": {
+"cur": "EUR",
+"lang": "Griechisch, Türkisch",
+"plug": "G"
+},
+"CZ": {
+"cur": "CZK",
+"lang": "Tschechisch",
+"plug": "C, E"
+},
+"DE": {
+"cur": "EUR",
+"lang": "Deutsch",
+"plug": "C, F"
+},
+"DJ": {
+"cur": "DJF",
+"lang": "Französisch, Arabisch",
+"plug": "C, E"
+},
+"DK": {
+"cur": "DKK",
+"lang": "Dänisch",
+"plug": "C, E, F, K"
+},
+"DM": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "D, G"
+},
+"DO": {
+"cur": "DOP",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"DZ": {
+"cur": "DZD",
+"lang": "Arabisch",
+"plug": "C, F"
+},
+"EC": {
+"cur": "USD",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"EE": {
+"cur": "EUR",
+"lang": "Estnisch",
+"plug": "C, F"
+},
+"EG": {
+"cur": "EGP",
+"lang": "Arabisch",
+"plug": "C, F"
+},
+"ER": {
+"cur": "ERN",
+"lang": "Tigrinya, Arabisch",
+"plug": "C, L"
+},
+"ES": {
+"cur": "EUR",
+"lang": "Spanisch",
+"plug": "C, F"
+},
+"ET": {
+"cur": "ETB",
+"lang": "Amharisch",
+"plug": "C, E, F, L"
+},
+"FI": {
+"cur": "EUR",
+"lang": "Finnisch, Schwedisch",
+"plug": "C, F"
+},
+"FJ": {
+"cur": "FJD",
+"lang": "Englisch, Fidschi",
+"plug": "I"
+},
+"FK": {
+"cur": "FKP",
+"lang": "Englisch",
+"plug": "G"
+},
+"FM": {
+"cur": "USD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"FO": {
+"cur": "DKK",
+"lang": "Färöisch",
+"plug": "C, E, F, K"
+},
+"FR": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"GA": {
+"cur": "XAF",
+"lang": "Französisch",
+"plug": "C"
+},
+"GB": {
+"cur": "GBP",
+"lang": "Englisch",
+"plug": "G"
+},
+"GD": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "G"
+},
+"GE": {
+"cur": "GEL",
+"lang": "Georgisch",
+"plug": "C, F"
+},
+"GF": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, D, E"
+},
+"GG": {
+"cur": "GBP",
+"lang": "Englisch",
+"plug": "G"
+},
+"GH": {
+"cur": "GHS",
+"lang": "Englisch",
+"plug": "D, G"
+},
+"GI": {
+"cur": "GIP",
+"lang": "Englisch",
+"plug": "C, G"
+},
+"GL": {
+"cur": "DKK",
+"lang": "Grönländisch, Dänisch",
+"plug": "C, E, F, K"
+},
+"GM": {
+"cur": "GMD",
+"lang": "Englisch",
+"plug": "G"
+},
+"GN": {
+"cur": "GNF",
+"lang": "Französisch",
+"plug": "C, F, K"
+},
+"GP": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, D, E"
+},
+"GQ": {
+"cur": "XAF",
+"lang": "Spanisch, Französisch",
+"plug": "C, E"
+},
+"GR": {
+"cur": "EUR",
+"lang": "Griechisch",
+"plug": "C, F"
+},
+"GT": {
+"cur": "GTQ",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"GU": {
+"cur": "USD",
+"lang": "Englisch, Chamorro",
+"plug": "A, B"
+},
+"GW": {
+"cur": "XOF",
+"lang": "Portugiesisch",
+"plug": "C"
+},
+"GY": {
+"cur": "GYD",
+"lang": "Englisch",
+"plug": "A, B, D, G"
+},
+"HK": {
+"cur": "HKD",
+"lang": "Chinesisch (Kantonesisch), Englisch",
+"plug": "G"
+},
+"HN": {
+"cur": "HNL",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"HR": {
+"cur": "EUR",
+"lang": "Kroatisch",
+"plug": "C, F"
+},
+"HT": {
+"cur": "HTG",
+"lang": "Französisch, Haitianisch",
+"plug": "A, B"
+},
+"HU": {
+"cur": "HUF",
+"lang": "Ungarisch",
+"plug": "C, F"
+},
+"ID": {
+"cur": "IDR",
+"lang": "Indonesisch",
+"plug": "C, F"
+},
+"IE": {
+"cur": "EUR",
+"lang": "Englisch, Irisch",
+"plug": "G"
+},
+"IL": {
+"cur": "ILS",
+"lang": "Hebräisch, Arabisch",
+"plug": "C, H"
+},
+"IM": {
+"cur": "GBP",
+"lang": "Englisch",
+"plug": "G"
+},
+"IN": {
+"cur": "INR",
+"lang": "Hindi, Englisch",
+"plug": "C, D, M"
+},
+"IQ": {
+"cur": "IQD",
+"lang": "Arabisch, Kurdisch",
+"plug": "C, D, G"
+},
+"IR": {
+"cur": "IRR",
+"lang": "Persisch",
+"plug": "C, F"
+},
+"IS": {
+"cur": "ISK",
+"lang": "Isländisch",
+"plug": "C, F"
+},
+"IT": {
+"cur": "EUR",
+"lang": "Italienisch",
+"plug": "C, F, L"
+},
+"JE": {
+"cur": "GBP",
+"lang": "Englisch",
+"plug": "G"
+},
+"JM": {
+"cur": "JMD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"JO": {
+"cur": "JOD",
+"lang": "Arabisch",
+"plug": "B, C, D, F, G, J"
+},
+"JP": {
+"cur": "JPY",
+"lang": "Japanisch",
+"plug": "A, B"
+},
+"KE": {
+"cur": "KES",
+"lang": "Suaheli, Englisch",
+"plug": "G"
+},
+"KG": {
+"cur": "KGS",
+"lang": "Kirgisisch, Russisch",
+"plug": "C, F"
+},
+"KH": {
+"cur": "KHR",
+"lang": "Khmer",
+"plug": "A, C, G"
+},
+"KI": {
+"cur": "AUD",
+"lang": "Englisch, Gilbertesisch",
+"plug": "I"
+},
+"KM": {
+"cur": "KMF",
+"lang": "Komorisch, Französisch, Arabisch",
+"plug": "C, E"
+},
+"KN": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "D, G"
+},
+"KP": {
+"cur": "KPW",
+"lang": "Koreanisch",
+"plug": "A, C"
+},
+"KR": {
+"cur": "KRW",
+"lang": "Koreanisch",
+"plug": "C, F"
+},
+"KW": {
+"cur": "KWD",
+"lang": "Arabisch",
+"plug": "C, G"
+},
+"KY": {
+"cur": "KYD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"KZ": {
+"cur": "KZT",
+"lang": "Kasachisch, Russisch",
+"plug": "C, F"
+},
+"LA": {
+"cur": "LAK",
+"lang": "Laotisch",
+"plug": "A, B, C, E, F"
+},
+"LB": {
+"cur": "LBP",
+"lang": "Arabisch",
+"plug": "A, B, C, D, G"
+},
+"LC": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "G"
+},
+"LI": {
+"cur": "CHF",
+"lang": "Deutsch",
+"plug": "C, J"
+},
+"LK": {
+"cur": "LKR",
+"lang": "Singhalesisch, Tamil",
+"plug": "D, G, M"
+},
+"LR": {
+"cur": "LRD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"LS": {
+"cur": "LSL",
+"lang": "Sesotho, Englisch",
+"plug": "M"
+},
+"LT": {
+"cur": "EUR",
+"lang": "Litauisch",
+"plug": "C, F"
+},
+"LU": {
+"cur": "EUR",
+"lang": "Luxemburgisch, Französisch, Deutsch",
+"plug": "C, F"
+},
+"LV": {
+"cur": "EUR",
+"lang": "Lettisch",
+"plug": "C, F"
+},
+"LY": {
+"cur": "LYD",
+"lang": "Arabisch",
+"plug": "C, L"
+},
+"MA": {
+"cur": "MAD",
+"lang": "Arabisch, Berberisch",
+"plug": "C, E"
+},
+"MC": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, D, E, F"
+},
+"MD": {
+"cur": "MDL",
+"lang": "Rumänisch",
+"plug": "C, F"
+},
+"ME": {
+"cur": "EUR",
+"lang": "Montenegrinisch",
+"plug": "C, F"
+},
+"MF": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"MG": {
+"cur": "MGA",
+"lang": "Malagasy, Französisch",
+"plug": "C, D, E, J, K"
+},
+"MH": {
+"cur": "USD",
+"lang": "Marshallesisch, Englisch",
+"plug": "A, B"
+},
+"MK": {
+"cur": "MKD",
+"lang": "Mazedonisch",
+"plug": "C, F"
+},
+"ML": {
+"cur": "XOF",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"MM": {
+"cur": "MMK",
+"lang": "Birmanisch",
+"plug": "C, D, F, G"
+},
+"MN": {
+"cur": "MNT",
+"lang": "Mongolisch",
+"plug": "C, E"
+},
+"MO": {
+"cur": "MOP",
+"lang": "Chinesisch (Kantonesisch), Portugiesisch",
+"plug": "D, G"
+},
+"MP": {
+"cur": "USD",
+"lang": "Englisch, Chamorro",
+"plug": "A, B"
+},
+"MQ": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, D, E"
+},
+"MR": {
+"cur": "MRU",
+"lang": "Arabisch",
+"plug": "C"
+},
+"MS": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"MT": {
+"cur": "EUR",
+"lang": "Maltesisch, Englisch",
+"plug": "G"
+},
+"MU": {
+"cur": "MUR",
+"lang": "Englisch, Französisch, Morisyen",
+"plug": "C, G"
+},
+"MV": {
+"cur": "MVR",
+"lang": "Dhivehi",
+"plug": "C, D, G, J, K, L"
+},
+"MW": {
+"cur": "MWK",
+"lang": "Englisch, Chichewa",
+"plug": "G"
+},
+"MX": {
+"cur": "MXN",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"MY": {
+"cur": "MYR",
+"lang": "Malaiisch",
+"plug": "G"
+},
+"MZ": {
+"cur": "MZN",
+"lang": "Portugiesisch",
+"plug": "C, F, M"
+},
+"NA": {
+"cur": "NAD",
+"lang": "Englisch",
+"plug": "D, M"
+},
+"NC": {
+"cur": "XPF",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"NE": {
+"cur": "XOF",
+"lang": "Französisch",
+"plug": "A, B, C, D, E, F"
+},
+"NF": {
+"cur": "AUD",
+"lang": "Englisch",
+"plug": "I"
+},
+"NG": {
+"cur": "NGN",
+"lang": "Englisch",
+"plug": "D, G"
+},
+"NI": {
+"cur": "NIO",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"NL": {
+"cur": "EUR",
+"lang": "Niederländisch",
+"plug": "C, F"
+},
+"NO": {
+"cur": "NOK",
+"lang": "Norwegisch",
+"plug": "C, F"
+},
+"NP": {
+"cur": "NPR",
+"lang": "Nepali",
+"plug": "C, D, M"
+},
+"NR": {
+"cur": "AUD",
+"lang": "Nauruisch, Englisch",
+"plug": "I"
+},
+"NU": {
+"cur": "NZD",
+"lang": "Niueanisch, Englisch",
+"plug": "I"
+},
+"NZ": {
+"cur": "NZD",
+"lang": "Englisch, Maori",
+"plug": "I"
+},
+"OM": {
+"cur": "OMR",
+"lang": "Arabisch",
+"plug": "C, G"
+},
+"PA": {
+"cur": "PAB",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"PE": {
+"cur": "PEN",
+"lang": "Spanisch",
+"plug": "A, C"
+},
+"PF": {
+"cur": "XPF",
+"lang": "Französisch",
+"plug": "A, B, E"
+},
+"PG": {
+"cur": "PGK",
+"lang": "Englisch, Tok Pisin",
+"plug": "I"
+},
+"PH": {
+"cur": "PHP",
+"lang": "Filipino, Englisch",
+"plug": "A, B, C"
+},
+"PK": {
+"cur": "PKR",
+"lang": "Urdu, Englisch",
+"plug": "C, D"
+},
+"PL": {
+"cur": "PLN",
+"lang": "Polnisch",
+"plug": "C, E"
+},
+"PM": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"PR": {
+"cur": "USD",
+"lang": "Spanisch, Englisch",
+"plug": "A, B"
+},
+"PS": {
+"cur": "ILS",
+"lang": "Arabisch",
+"plug": "C, H"
+},
+"PT": {
+"cur": "EUR",
+"lang": "Portugiesisch",
+"plug": "C, F"
+},
+"PW": {
+"cur": "USD",
+"lang": "Palauisch, Englisch",
+"plug": "A, B"
+},
+"PY": {
+"cur": "PYG",
+"lang": "Spanisch, Guaraní",
+"plug": "C"
+},
+"QA": {
+"cur": "QAR",
+"lang": "Arabisch",
+"plug": "D, G"
+},
+"RE": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"RO": {
+"cur": "RON",
+"lang": "Rumänisch",
+"plug": "C, F"
+},
+"RS": {
+"cur": "RSD",
+"lang": "Serbisch",
+"plug": "C, F"
+},
+"RU": {
+"cur": "RUB",
+"lang": "Russisch",
+"plug": "C, F"
+},
+"RW": {
+"cur": "RWF",
+"lang": "Kinyarwanda, Französisch, Englisch",
+"plug": "C, J"
+},
+"SA": {
+"cur": "SAR",
+"lang": "Arabisch",
+"plug": "A, B, G"
+},
+"SB": {
+"cur": "SBD",
+"lang": "Englisch",
+"plug": "G, I"
+},
+"SC": {
+"cur": "SCR",
+"lang": "Seychellenkreol, Englisch, Französisch",
+"plug": "G"
+},
+"SD": {
+"cur": "SDG",
+"lang": "Arabisch, Englisch",
+"plug": "C, D"
+},
+"SE": {
+"cur": "SEK",
+"lang": "Schwedisch",
+"plug": "C, F"
+},
+"SG": {
+"cur": "SGD",
+"lang": "Englisch, Malaiisch, Mandarin, Tamil",
+"plug": "G"
+},
+"SH": {
+"cur": "SHP",
+"lang": "Englisch",
+"plug": "G"
+},
+"SI": {
+"cur": "EUR",
+"lang": "Slowenisch",
+"plug": "C, F"
+},
+"SJ": {
+"cur": "NOK",
+"lang": "Norwegisch",
+"plug": "C, F"
+},
+"SK": {
+"cur": "EUR",
+"lang": "Slowakisch",
+"plug": "C, E"
+},
+"SL": {
+"cur": "SLE",
+"lang": "Englisch",
+"plug": "D, G"
+},
+"SM": {
+"cur": "EUR",
+"lang": "Italienisch",
+"plug": "C, F, L"
+},
+"SN": {
+"cur": "XOF",
+"lang": "Französisch",
+"plug": "C, D, E, K"
+},
+"SO": {
+"cur": "SOS",
+"lang": "Somali, Arabisch",
+"plug": "C"
+},
+"SR": {
+"cur": "SRD",
+"lang": "Niederländisch",
+"plug": "C, F"
+},
+"SS": {
+"cur": "SSP",
+"lang": "Englisch",
+"plug": "C, D"
+},
+"ST": {
+"cur": "STN",
+"lang": "Portugiesisch",
+"plug": "C, F"
+},
+"SV": {
+"cur": "USD",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"SX": {
+"cur": "ANG",
+"lang": "Niederländisch, Englisch",
+"plug": "A, B"
+},
+"SY": {
+"cur": "SYP",
+"lang": "Arabisch",
+"plug": "C, E, L"
+},
+"SZ": {
+"cur": "SZL",
+"lang": "Swasi, Englisch",
+"plug": "M"
+},
+"TC": {
+"cur": "USD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"TD": {
+"cur": "XAF",
+"lang": "Französisch, Arabisch",
+"plug": "C, D, E, F"
+},
+"TG": {
+"cur": "XOF",
+"lang": "Französisch",
+"plug": "C"
+},
+"TH": {
+"cur": "THB",
+"lang": "Thai",
+"plug": "A, B, C, O"
+},
+"TJ": {
+"cur": "TJS",
+"lang": "Tadschikisch",
+"plug": "C, F"
+},
+"TL": {
+"cur": "USD",
+"lang": "Tetum, Portugiesisch",
+"plug": "C, E, F, I"
+},
+"TM": {
+"cur": "TMT",
+"lang": "Turkmenisch",
+"plug": "B, C, F"
+},
+"TN": {
+"cur": "TND",
+"lang": "Arabisch",
+"plug": "C, E"
+},
+"TO": {
+"cur": "TOP",
+"lang": "Tongaisch, Englisch",
+"plug": "I"
+},
+"TR": {
+"cur": "TRY",
+"lang": "Türkisch",
+"plug": "C, F"
+},
+"TT": {
+"cur": "TTD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"TV": {
+"cur": "AUD",
+"lang": "Tuvaluisch, Englisch",
+"plug": "I"
+},
+"TW": {
+"cur": "TWD",
+"lang": "Chinesisch (Mandarin)",
+"plug": "A, B"
+},
+"TZ": {
+"cur": "TZS",
+"lang": "Suaheli, Englisch",
+"plug": "D, G"
+},
+"UA": {
+"cur": "UAH",
+"lang": "Ukrainisch",
+"plug": "C, F"
+},
+"UG": {
+"cur": "UGX",
+"lang": "Englisch, Suaheli",
+"plug": "G"
+},
+"US": {
+"cur": "USD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"UY": {
+"cur": "UYU",
+"lang": "Spanisch",
+"plug": "C, F, L"
+},
+"UZ": {
+"cur": "UZS",
+"lang": "Usbekisch",
+"plug": "C, F"
+},
+"VA": {
+"cur": "EUR",
+"lang": "Italienisch, Latein",
+"plug": "C, F, L"
+},
+"VC": {
+"cur": "XCD",
+"lang": "Englisch",
+"plug": "A, C, E, G, I, K"
+},
+"VE": {
+"cur": "VES",
+"lang": "Spanisch",
+"plug": "A, B"
+},
+"VG": {
+"cur": "USD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"VI": {
+"cur": "USD",
+"lang": "Englisch",
+"plug": "A, B"
+},
+"VN": {
+"cur": "VND",
+"lang": "Vietnamesisch",
+"plug": "A, C"
+},
+"VU": {
+"cur": "VUV",
+"lang": "Bislama, Englisch, Französisch",
+"plug": "C, G, I"
+},
+"WF": {
+"cur": "XPF",
+"lang": "Französisch, Wallisianisch",
+"plug": "C, E"
+},
+"WS": {
+"cur": "WST",
+"lang": "Samoanisch, Englisch",
+"plug": "I"
+},
+"XK": {
+"cur": "EUR",
+"lang": "Albanisch, Serbisch",
+"plug": "C, F"
+},
+"YE": {
+"cur": "YER",
+"lang": "Arabisch",
+"plug": "A, D, G"
+},
+"YT": {
+"cur": "EUR",
+"lang": "Französisch",
+"plug": "C, E"
+},
+"ZA": {
+"cur": "ZAR",
+"lang": "Englisch, Afrikaans, isiZulu",
+"plug": "C, D, M, N"
+},
+"ZM": {
+"cur": "ZMW",
+"lang": "Englisch",
+"plug": "C, D, G"
+},
+"ZW": {
+"cur": "ZWG",
+"lang": "Englisch, Shona, Ndebele",
+"plug": "D, G"
+}
+}

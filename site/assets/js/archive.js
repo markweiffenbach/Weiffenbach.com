@@ -1,6 +1,6 @@
 // Hafen-Archiv: alle Häfen mit unseren Besuchen, Reisetagebuch, Tipps und weiterführenden Links (Ansicht #hafen).
 import { esc, fmt } from './charts.js';
-import { entryHtml, fmtDate, flagEmoji, linkHtml, firstCallBadge } from './diary.js';
+import { entryHtml, fmtDate, flagEmoji, linkHtml, firstCallBadge, stopDetails, utc } from './diary.js';
 
 const $ = (s) => document.querySelector(s);
 const plural = (n, one, many) => `${fmt.format(n)} ${n === 1 ? one : many}`;
@@ -15,13 +15,13 @@ function collect(data) {
   const byPort = new Map();
   const get = (port, country) => {
     let p = byPort.get(port);
-    if (!p) byPort.set(port, (p = { port, country: '', k: '', lat: null, lng: null, visits: [], missed: [] }));
+    if (!p) byPort.set(port, (p = { port, country: '', k: '', lat: null, lng: null, tz: null, visits: [], missed: [] }));
     if (!p.country && country) p.country = country;
     return p;
   };
   const visit = (p, key, init) => {
     let v = p.visits.find((x) => x.key === key);
-    if (!v) p.visits.push((v = { key, days: new Set(), types: new Set(), entries: [], ...init }));
+    if (!v) p.visits.push((v = { key, days: new Set(), types: new Set(), entries: [], stops: [], ...init }));
     return v;
   };
   for (const s of data.stops) {
@@ -30,6 +30,8 @@ function collect(data) {
     const v = visit(p, s.cruise ? `c${s.cruise.id}` : `l${s.d.slice(0, 7)}`, { d: s.d, cruise: s.cruise });
     v.days.add(s.d);
     v.types.add(s.type);
+    v.stops.push(s);
+    if (s.tz != null) p.tz = s.tz;
     if (s.first && !v.first) v.first = s;
   }
   for (const e of data.diary) {
@@ -163,6 +165,7 @@ function bodyHtml(p) {
         <p class="arch-vhead"><span class="arch-when">${when}</span>
           ${c ? `<button class="link-btn" type="button" data-trip="${c.id}">${esc(c.ship)}</button> <small>${esc(c.route)}</small>` : '<span>an Land</span>'}
           ${type ? `<span class="badge">${esc(type)}</span>` : ''}${c?.planned ? '<span class="badge">geplant</span>' : ''}${v.first && c ? firstCallBadge(v.first, c.ship) : ''}</p>
+        ${v.stops.map((s) => stopDetails(s)).filter(Boolean).map((x, i, all) => (all.length > 1 ? `<p class="arch-details">${fmtDate(v.stops[i].d)} ${x}</p>` : `<p class="arch-details">${x}</p>`)).join('')}
         ${v.entries.length ? `<div class="tp-diary">${v.entries.map((e) => entryHtml(e, { date: days.length > 1, port: !!e.place })).join('')}</div>`
           : `<p class="arch-none">${c?.planned ? 'Noch nichts geplant – Ideen im Tab „Tagebuch“ eintragen.' : 'Kein Tagebucheintrag.'}</p>`}
       </li>`;
@@ -182,10 +185,28 @@ function bodyHtml(p) {
     [`https://www.getyourguide.de/s/?q=${q}`, 'Ausflüge (GetYourGuide)'],
   ];
   return `
+    ${countryHtml(p)}
     ${visits ? `<ol class="arch-visits">${visits}</ol>` : ''}
     ${missed ? `<h4 class="arch-h">Nicht angelaufen</h4><ol class="arch-visits">${missed}</ol>` : ''}
     <div class="arch-links">
       ${own.length ? `<div><h4 class="arch-h">Unsere Links</h4><p>${own.map((u) => linkHtml(u)).join('')}</p></div>` : ''}
       <div><h4 class="arch-h">Mehr Informationen</h4><p>${general.map(([u, l]) => linkHtml(u, l)).join('')}</p></div>
     </div>`;
+}
+
+// Länder-Kurzinfo: Währung, Sprache, Steckdosen, Zeitzone und Reisehinweise
+let currencyNames = null;
+try { currencyNames = new Intl.DisplayNames(['de'], { type: 'currency' }); } catch { /* alter Browser */ }
+function countryHtml(p) {
+  const m = ctx.data.countries[p.country] || {};
+  const cur = m.cur ? (currencyNames?.of(m.cur) || m.cur) + ` (${m.cur})` : '';
+  const rows = [
+    cur && ['Währung', esc(cur)],
+    m.lang && ['Sprache', esc(m.lang)],
+    m.plug && ['Steckdose', `Typ ${esc(m.plug)}${/\b[CF]\b/.test(m.plug) ? '' : ' <small>(Adapter nötig)</small>'}`],
+    p.tz != null && ['Zeitzone', `${utc(p.tz)} <small>(bei unserem letzten Besuch)</small>`],
+  ].filter(Boolean);
+  if (!rows.length) return '';
+  const aa = m.a2 === 'DE' ? '' : `<p class="arch-cinfo-link">${linkHtml('https://www.auswaertiges-amt.de/de/ReiseUndSicherheit/reise-und-sicherheitshinweise', 'Einreise & Visum: Auswärtiges Amt')}</p>`;
+  return `<div class="arch-cinfo"><dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>${aa}</div>`;
 }
