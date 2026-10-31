@@ -66,19 +66,41 @@ const UA = { 'User-Agent': 'weiffenbach.com-build/1.0 (private travel log)' };
 const SHIPLIKE = /ship|schiff|cruise|kreuzfahrt|vessel|liner/i;
 
 async function getJSON(u) {
-  try {
-    await new Promise((r) => setTimeout(r, 150));
-    const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(15000) });
-    return res.ok ? await res.json() : null;
-  } catch { return null; }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await new Promise((r) => setTimeout(r, 250 + attempt * 1500));
+      const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(15000) });
+      if (res.status === 429 || res.status >= 500) continue; // gedrosselt: kurz warten und erneut
+      return res.ok ? await res.json() : null;
+    } catch { /* erneut versuchen */ }
+  }
+  return null;
 }
 
 // Artikel-Zusammenfassung mit Vorschaubild; nur Treffer, die nach Schiff aussehen
 async function summary(lang, title) {
   const j = await getJSON(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, '_'))}`);
-  if (!j?.thumbnail?.source || j.type === 'disambiguation') return null;
+  if (!j || j.type === 'disambiguation') return null;
   if (!SHIPLIKE.test(`${j.description || ''} ${j.extract || ''}`)) return null;
-  return { thumb: j.thumbnail.source, page: j.content_urls?.desktop?.page || '', title: j.title };
+  let thumb = j.thumbnail?.source || j.originalimage?.source;
+  if (!thumb) {
+    // manche Artikel liefern das Bild nur über die Seitenbilder-Abfrage
+    const q = await getJSON(`https://${lang}.wikipedia.org/w/api.php?action=query&format=json&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=640&titles=${encodeURIComponent(j.title)}`);
+    thumb = Object.values(q?.query?.pages || {})[0]?.thumbnail?.source;
+  }
+  return thumb ? { thumb, page: j.content_urls?.desktop?.page || '', title: j.title } : null;
+}
+
+async function search(lang, name) {
+  const words = name.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+  const q = await getJSON(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&format=json&srlimit=5&srsearch=${encodeURIComponent(name)}`);
+  for (const hit of q?.query?.search || []) {
+    const t = hit.title.toLowerCase();
+    if (!words.every((w) => t.includes(w))) continue;
+    const s = await summary(lang, hit.title);
+    if (s) return s;
+  }
+  return null;
 }
 
 async function findShipImage(name, override) {
@@ -87,25 +109,17 @@ async function findShipImage(name, override) {
     const m = override.match(/^(de|en):(.+)$/);
     tries.push(m ? [m[1], m[2]] : ['de', override]);
   }
-  tries.push(['de', name], ['en', name]);
+  tries.push(['en', name], ['de', name], ['en', `${name} (ship)`], ['de', `${name} (Schiff)`], ['en', `MS ${name}`]);
   for (const [lang, title] of tries) {
     const s = await summary(lang, title);
     if (s) return s;
   }
-  // Suche als letzter Versuch: erster Treffer, dessen Titel den Schiffsnamen enthält
-  const q = await getJSON(`https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&srlimit=3&srsearch=${encodeURIComponent(`${name} cruise ship`)}`);
-  const words = name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-  for (const hit of q?.query?.search || []) {
-    if (!words.every((w) => hit.title.toLowerCase().includes(w))) continue;
-    const s = await summary('en', hit.title);
-    if (s) return s;
-  }
-  return null;
+  return (await search('en', name)) || (await search('de', name));
 }
 
 /**
  * Lädt zu jedem Schiff ein Wikipedia-Bild, legt es verschlüsselt unter <outDir>/photos ab und ergänzt
- * ship.img (Dateiname) und ship.wiki (Artikel). Bilder werden im Cache gehalten, Fehlschläge 30 Tage lang nicht wiederholt.
+ * ship.img (Dateiname) und ship.wiki (Artikel). Bilder werden im Cache gehalten, Fehlschläge eine Woche lang nicht wiederholt.
  */
 export async function addShipImages(ships, cache, { key, keyId, outDir, encryptBytes, offline = false }) {
   cache.shipImg ||= {};
@@ -114,7 +128,7 @@ export async function addShipImages(ships, cache, { key, keyId, outDir, encryptB
   for (const [name, ship] of Object.entries(ships)) {
     const want = ship.imgSrc || '';
     let c = cache.shipImg[name];
-    const stale = !c || c.src !== want || (c.fail && Date.now() - c.fail > 30 * 86400000);
+    const stale = !c || c.src !== want || c.v !== 2 || (c.fail && Date.now() - c.fail > 7 * 86400000);
     if (stale && !offline) {
       const s = await findShipImage(name, want);
       let bytes = null;
@@ -126,7 +140,7 @@ export async function addShipImages(ships, cache, { key, keyId, outDir, encryptB
           if (res.ok) bytes = Buffer.from(await res.arrayBuffer());
         } catch { /* nächster Lauf */ }
       }
-      c = cache.shipImg[name] = bytes ? { src: want, page: s.page, data: bytes.toString('base64') } : { src: want, fail: Date.now() };
+      c = cache.shipImg[name] = bytes ? { v: 2, src: want, page: s.page, data: bytes.toString('base64') } : { v: 2, src: want, fail: Date.now() };
       if (bytes) fetched++;
     }
     delete ship.imgSrc;
