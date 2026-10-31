@@ -51,7 +51,8 @@ Dazu kommen in **Kreuzfahrten** die Spalten „Mitreisende“ und „Kabine“ s
 Die **Schiffsübersicht** (Knopf „Schiffe“ oder `…/#schiffe`) zeigt jedes Schiff mit Foto, Steckbrief, unseren Reisen,
 Nächten, Häfen und Seemeilen darauf. Das Foto holt der Build aus Wikipedia (Artikel mit dem Schiffsnamen) und legt es
 verschlüsselt ab. Passt das Bild nicht, trägt man in „Bild“ den Artikel ein, z. B. `de:Mein Schiff 1 (Schiff, 2018)`
-oder `en:Royal Princess (2013)`. Preise, Buchungs- und Ticketnummern gehören in keinen dieser Tabs.
+oder `en:Royal Princess (2013)`. Ein bestimmtes Foto aus Wikimedia Commons (etwa aus der Zeit vor einem
+Reedereiwechsel) wählt man mit `File:<Dateiname>`, z. B. `File:AIDAaura.jpg`. Preise, Buchungs- und Ticketnummern gehören in keinen dieser Tabs.
 
 Automatisch ergänzt der Build für vergangene Hafentage das Wetter (Höchst-/Tiefstwert, Regen, Wind) und die Zeitzone
 aus dem historischen Archiv von [Open-Meteo](https://open-meteo.com). Daraus entstehen Fakten wie der wärmste und der
