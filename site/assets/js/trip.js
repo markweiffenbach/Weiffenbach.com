@@ -1,7 +1,7 @@
 // Detailansicht einer Reise (Seitenpanel) mit Tagesverlauf, Reisetagebuch, Schiffsdaten und verschlüsselten Fotos.
 import { esc, fmt } from './charts.js';
 import { decryptBytes } from './crypto.js';
-import { entryHtml, fmtDay, fmtDate, flagEmoji } from './diary.js';
+import { entryHtml, fmtDay, fmtDate, flagEmoji, firstCallBadge } from './diary.js';
 
 const $ = (s) => document.querySelector(s);
 const DAY = 86400000;
@@ -96,7 +96,7 @@ function render(c) {
     [fmtDate(c.start) + ' – ' + fmtDate(c.end), 'Reisezeit'],
     [plural(c.nights, 'Nacht', 'Nächte'), `${plural(c.seaDays, 'Seetag', 'Seetage')}`],
     [plural(c.portNames.length, 'Hafen', 'Häfen'), [c.newPorts.length ? `${fmt.format(c.newPorts.length)} davon zum ersten Mal` : 'alle schon bekannt',
-      c.missed.length && `${fmt.format(c.missed.length)} ausgefallen`].filter(Boolean).join(' · ')],
+      c.missed.length && `${fmt.format(c.missed.length)} ausgefallen`, c.firstCalls.length && plural(c.firstCalls.length, 'Erstanlauf', 'Erstanläufe')].filter(Boolean).join(' · ')],
     [`${fmt.format(Math.round(c.nm))} sm`, `≈ ${fmt.format(Math.round(c.nm * 1.852))} km`],
   ];
 
@@ -125,7 +125,7 @@ function render(c) {
       const isNew = s.type === 'Hafen' && c.newPorts.includes(s.port) && !seenNew.has(s.port);
       if (isNew) seenNew.add(s.port);
       return `<span class="tp-place">${s.type === 'Passage' ? '<span class="tp-pass">Passage</span> ' : ''}${esc(s.port)}
-        <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(s.country)}</small>${isNew ? '<span class="badge">neu</span>' : ''}</span>`;
+        <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(s.country)}</small>${isNew ? '<span class="badge">neu</span>' : ''}${firstCallBadge(s, c.ship)}</span>`;
     }).join('');
     // Geplante, aber ausgefallene Häfen: durchgestrichen mit Grund
     const missed = c.missed.filter((x) => x.d === d).map((x) => {

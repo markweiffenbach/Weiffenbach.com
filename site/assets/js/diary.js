@@ -8,6 +8,17 @@ export const flagEmoji = (a2) => (/^[A-Z]{2}$/.test(a2 || '') ? String.fromCodeP
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'Link'; } };
 export const linkHtml = (u, label = host(u)) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>`;
 
+/** Kennzeichen „Erstanlauf“: das Schiff lief den Hafen auf dieser Reise zum ersten Mal an. */
+export function firstCallBadge(s, ship) {
+  if (!s.first) return '';
+  const sure = s.first === 'ja';
+  const title = `Erstanlauf der ${ship} in ${s.port}${sure ? '' : ' (wahrscheinlich)'}`;
+  const label = sure ? 'Erstanlauf' : 'Erstanlauf?';
+  return s.firstSrc
+    ? `<a class="badge first" href="${esc(s.firstSrc)}" target="_blank" rel="noopener noreferrer" title="${esc(title)} – Quelle öffnen">${label} ↗</a>`
+    : `<span class="badge first" title="${esc(title)}">${label}</span>`;
+}
+
 /** opts: date (Datum zeigen), port (Ort voranstellen), archive (Knopf zum Hafen-Archiv) */
 export function entryHtml(e, { date = false, port = false, archive = false } = {}) {
   const foot = [...e.links.map((u) => linkHtml(u)),

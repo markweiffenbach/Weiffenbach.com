@@ -175,6 +175,7 @@ function prepare(data) {
     c.cross = crossings(c.legs);
     c.shipInfo = data.ships?.[c.ship] || null;
     c.photos = (data.photos || []).filter((p) => p.cruise === c.id);
+    c.firstCalls = c.legs.filter((s) => s.first);
   }
   // Erstbesuche: Häfen und Länder, die auf dieser Reise zum ersten Mal angelaufen wurden
   const seenPorts = new Set(), seenCountries = new Set();
@@ -537,6 +538,9 @@ function extraFacts(m) {
   if (tr) out.push(['Wendekreise überquert', `${tr}×`, `Krebs ${sum('cancer')}× · Steinbock ${sum('capricorn')}×`]);
   const ar = sum('arctic');
   if (ar) out.push(['Polarkreis überquert', `${ar}×`, which('arctic').join(', ')]);
+  // Erstanläufe: das Schiff lief den Hafen auf unserer Reise zum ersten Mal an
+  const firsts = m.cruises.flatMap((c) => c.firstCalls.map((s) => `${s.port} (${c.ship} ${year(s.d)})`));
+  if (firsts.length) out.push(['Erstanläufe miterlebt', `${firsts.length}×`, firsts.join(', ')]);
   const best = m.cruises.reduce((a, b) => (b.newPorts.length > (a?.newPorts.length ?? -1) ? b : a), null);
   if (best?.newPorts.length) {
     out.push(['Meiste Erstbesuche', plural(best.newPorts.length, 'neuer Hafen', 'neue Häfen'),
@@ -630,7 +634,7 @@ function renderLog(m) {
   $('#log').innerHTML = [...byYear].map(([y, trips]) => `<li class="log-year">${y}</li>` + trips.map((c) => `
     <li class="trip${state.selected === c.id ? ' active' : ''}" data-id="${c.id}" tabindex="0" role="button" aria-label="Details zu ${esc(c.ship)}, ${esc(c.route)}">
       <span class="trip-date">${fmtDate(c.start, { day: '2-digit', month: '2-digit' })} – ${fmtDate(c.end, { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}${c.missed.length ? `<span class="badge warn">${fmt.format(c.missed.length)} ausgefallen</span>` : ''}${c.photos.length ? `<span class="badge">${plural(c.photos.length, 'Foto', 'Fotos')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
+      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}${c.missed.length ? `<span class="badge warn">${fmt.format(c.missed.length)} ausgefallen</span>` : ''}${c.firstCalls.length ? `<span class="badge first">${plural(c.firstCalls.length, 'Erstanlauf', 'Erstanläufe')}</span>` : ''}${c.photos.length ? `<span class="badge">${plural(c.photos.length, 'Foto', 'Fotos')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
       <span class="trip-meta"><b>${c.nights}</b> Nächte<br>${plural(c.seaDays, 'Seetag', 'Seetage')} · ${fmt.format(Math.round(c.nm))} sm</span>
       <span class="trip-ports">${c.portNames.map((p) => (c.newPorts.includes(p) ? `<b>${esc(p)}</b>` : esc(p))).join(' · ') || '–'}</span>
     </li>`).join('')).join('') || '<li class="empty">Keine passende Reise.</li>';

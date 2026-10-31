@@ -137,7 +137,7 @@ async function loadSource() {
       cruises: seed.cruises.map((c, i) => ({ _row: i + 2, Start: c.start, Ende: c.ende, Schiff: c.schiff, Reederei: c.reederei,
         Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '' })),
       stops: seed.stops.map((s, i) => ({ _row: i + 2, Datum: s.datum, Hafen: s.hafen, Land: s.land, Art: s.typ,
-        Breite: String(s.lat), 'Länge': String(s.lng) })),
+        Breite: String(s.lat), 'Länge': String(s.lng), Erstanlauf: s.erstanlauf || '', 'Erstanlauf Quelle': s.erstanlaufQuelle || '' })),
       ships: (seed.ships || []).map((x, i) => ({ _row: i + 2, ...x })),
       missed: (seed.missed || []).map((m, i) => ({ _row: i + 2, Datum: m.datum, Hafen: m.hafen, Land: m.land, Grund: m.grund,
         Zeitpunkt: m.zeitpunkt || '', Status: m.status || '', Details: m.details || '', Quelle: m.quelle || '',
@@ -176,7 +176,7 @@ async function loadSource() {
   }
   return {
     cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten'),
-    stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps'),
+    stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps', ['Erstanlauf', 'Erstanlauf Quelle']),
     ships,
     missed,
     diary,
@@ -227,7 +227,10 @@ async function build() {
     if (!d) { warn(`Stopps, Zeile ${r._row}: Datum ungültig – Zeile übersprungen.`); continue; }
     if (!r.Hafen) { warn(`Stopps, Zeile ${r._row}: Hafen fehlt – Zeile übersprungen.`); continue; }
     const lat = parseNum(r.Breite), lng = parseNum(r['Länge']);
-    const s = { d, port: r.Hafen, country: r.Land, art: r.Art, lat, lng, _row: r._row };
+    // Erstanlauf: das Schiff lief den Hafen auf dieser Reise zum ersten Mal an („ja“ oder „wahrscheinlich“)
+    const first = /wahrsch|vermut/i.test(r.Erstanlauf || '') ? 'wahrscheinlich' : /^(ja|x|1|true)/i.test((r.Erstanlauf || '').trim()) ? 'ja' : '';
+    const firstSrc = /^https?:\/\//i.test(r['Erstanlauf Quelle'] || '') ? r['Erstanlauf Quelle'] : '';
+    const s = { d, port: r.Hafen, country: r.Land, art: r.Art, lat, lng, first, firstSrc, _row: r._row };
     if (lat != null && lng != null && !coordsByPort.has(s.port)) coordsByPort.set(s.port, { lat, lng });
     rawStops.push(s);
   }
@@ -260,7 +263,7 @@ async function build() {
     if (meta?.a2 === 'RU' && s.lng > 60) k = 'Asien';
     if (meta?.a2 === 'TR' && s.lat > 40.9 && s.lng < 29.2) k = 'Europa';
     return { d: s.d, port: s.port, country: s.country || 'Unbekannt', type: art, lat: s.lat, lng: s.lng, k,
-      cruise: c && art !== 'Landaufenthalt' ? c.id : null };
+      cruise: c && art !== 'Landaufenthalt' ? c.id : null, ...(s.first && c ? { first: s.first, firstSrc: s.firstSrc } : {}) };
   });
 
   const ships = {};
