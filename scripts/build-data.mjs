@@ -164,7 +164,7 @@ async function loadSource() {
     const seed = JSON.parse(await readFile(FROM_JSON, 'utf8'));
     return {
       cruises: seed.cruises.map((c, i) => ({ _row: i + 2, Start: c.start, Ende: c.ende, Schiff: c.schiff, Reederei: c.reederei,
-        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '', Mitreisende: c.mitreisende || '', Kabine: c.kabine || '' })),
+        Route: c.route, Fahrtgebiet: c.gebiet, Bemerkung: c.notiz || '', Mitreisende: c.mitreisende || '', Kabine: c.kabine || '', Fotoalbum: c.album || '' })),
       stops: seed.stops.map((s, i) => ({ _row: i + 2, Datum: s.datum, Hafen: s.hafen, Land: s.land, Art: s.typ,
         Breite: String(s.lat), 'Länge': String(s.lng), Erstanlauf: s.erstanlauf || '', 'Erstanlauf Quelle': s.erstanlaufQuelle || '' })),
       ships: (seed.ships || []).map((x, i) => ({ _row: i + 2, ...x })),
@@ -217,7 +217,7 @@ async function loadSource() {
   const travel = await optional(process.env.GID_ANREISE || '1900', 'Anreise', ['Datum', 'Art'], ['Von', 'Nach', 'Anbieter', 'Hinweis']);
   const onboard = await optional(process.env.GID_ANBORD || '2000', 'An Bord', ['Datum', 'Art', 'Name'], ['Hinweis']);
   return {
-    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten', ['Mitreisende', 'Kabine']),
+    cruises: table(k, ['Start', 'Ende', 'Schiff', 'Reederei', 'Route', 'Fahrtgebiet', 'Bemerkung'], 'Kreuzfahrten', ['Mitreisende', 'Kabine', 'Fotoalbum']),
     stops: table(s, ['Datum', 'Hafen', 'Land', 'Art', 'Breite', 'Länge'], 'Stopps', ['Erstanlauf', 'Erstanlauf Quelle']),
     ships,
     missed,
@@ -253,6 +253,14 @@ async function build() {
   const src = await loadSource();
   const countryTable = JSON.parse(await readFile(path.join(here, 'countries.de.json'), 'utf8'));
 
+  // Fotoalbum (z. B. freigegebenes Google-Fotos-Album): nur https-Links übernehmen
+  const albumOf = (r) => {
+    const u = String(r.Fotoalbum || '').trim();
+    if (!u) return {};
+    if (/^https:\/\/\S+$/i.test(u)) return { album: u };
+    warn(`Kreuzfahrten, Zeile ${r._row}: „Fotoalbum“ ist kein https-Link – wird ignoriert.`);
+    return {};
+  };
   const cruises = [];
   for (const r of src.cruises) {
     if (!r.Start && !r.Schiff) continue;
@@ -261,7 +269,7 @@ async function build() {
     if (end < start) { warn(`Kreuzfahrten, Zeile ${r._row}: Ende liegt vor Start – Zeile übersprungen.`); continue; }
     cruises.push({ start, end, nights: days(start, end), ship: r.Schiff || 'Unbekannt', line: r.Reederei || 'Unbekannt',
       route: r.Route || '', region: r.Fahrtgebiet || 'Sonstige', note: r.Bemerkung || '',
-      companions: r.Mitreisende || '', cabin: r.Kabine || '' });
+      companions: r.Mitreisende || '', cabin: r.Kabine || '', ...albumOf(r) });
   }
   cruises.sort((a, b) => a.start.localeCompare(b.start));
   cruises.forEach((c, i) => { c.id = i; });

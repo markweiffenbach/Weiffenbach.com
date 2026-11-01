@@ -200,6 +200,7 @@ function render(c) {
     <div class="tp-stats">${stats.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     <div class="tp-actions">
       <button class="text-btn" type="button" data-act="map">Auf der Karte zeigen</button>
+      ${c.album ? `<a class="text-btn tp-album" href="${esc(c.album)}" target="_blank" rel="noopener noreferrer">Fotoalbum öffnen ↗</a>` : ''}
       <span class="tp-nav">
         <button class="text-btn" type="button" data-act="prev" ${i <= 0 ? 'disabled' : ''}>‹ Vorherige</button>
         <button class="text-btn" type="button" data-act="next" ${i >= list.length - 1 ? 'disabled' : ''}>Nächste ›</button>

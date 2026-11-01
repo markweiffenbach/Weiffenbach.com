@@ -50,8 +50,12 @@ Weitere optionale Tabs reichern die Reisen an:
   Bei Hotels steht der Ort unter „Von“. Für Flüge berechnet der Build die Flugkilometer.
 - **An Bord**: Datum, Art (Restaurant, Show, Spa …), Name und Hinweis, z. B. gebuchte Restaurants und Shows.
 
-Dazu kommen in **Kreuzfahrten** die Spalten „Mitreisende“ und „Kabine“ sowie in **Schiffe** „Werft“, „Klasse“,
+Dazu kommen in **Kreuzfahrten** die Spalten „Mitreisende“, „Kabine“ und „Fotoalbum“ sowie in **Schiffe** „Werft“, „Klasse“,
 „Schwesterschiffe“ und „Bild“.
+
+**Fotoalbum**: Link zu einem per Link freigegebenen Google-Fotos-Album der Reise (`https://photos.app.goo.gl/…`). Ein Album
+verweist nur auf die vorhandenen Fotos und braucht keinen zusätzlichen Speicher. Die Homepage zeigt dazu „Fotoalbum öffnen ↗“
+in der Reise-Ansicht, im Logbuch und bei „Heute vor X Jahren“. Der Link steht nur in den verschlüsselten Daten.
 
 Die **Schiffsübersicht** (Knopf „Schiffe“ oder `…/#schiffe`) zeigt jedes Schiff mit Foto, Steckbrief, unseren Reisen,
 Nächten, Häfen und Seemeilen darauf. Das Foto holt der Build aus Wikipedia (Artikel mit dem Schiffsnamen) und legt es

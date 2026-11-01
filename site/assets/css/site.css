@@ -515,7 +515,8 @@ html.no-scroll { overflow: hidden; }
 /* ---------- Heute vor X Jahren ---------- */
 .memory { margin-top: 12px; }
 .memory-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-.memory-item { display: flex; flex-direction: column; gap: 4px; text-align: left; font: inherit; color: inherit; cursor: pointer;
+.memory-cell { display: flex; flex-direction: column; gap: 6px; }
+.memory-item { flex: 1; display: flex; flex-direction: column; gap: 4px; text-align: left; font: inherit; color: inherit; cursor: pointer;
   border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--surface); }
 .memory-item:hover { border-color: var(--ink-2); }
 .memory-ago { font-size: 12px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .08em; }
@@ -539,3 +540,9 @@ html.no-scroll { overflow: hidden; }
 [data-go]:focus-visible { outline: 2px solid var(--accent, #2a6fdb); outline-offset: 2px; }
 .hit.go:hover { fill: var(--accent-wash); }
 .chart .hit.go { cursor: pointer; }
+
+/* ---------- Fotoalbum-Links ---------- */
+.badge.album { text-decoration: none; color: inherit; }
+.badge.album:hover { background: var(--accent-wash); }
+.memory-album { font-size: 13px; padding-left: 4px; color: var(--accent); }
+.tp-album { text-decoration: none; display: inline-block; }
