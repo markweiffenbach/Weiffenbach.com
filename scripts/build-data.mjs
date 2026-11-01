@@ -463,7 +463,7 @@ async function build() {
   const info = JSON.parse(await readFile(path.join(here, 'countryinfo.json'), 'utf8'));
   for (const c of Object.values(countries)) if (info[c.a2]) Object.assign(c, info[c.a2]);
 
-  console.log(`ℹ ${timed} Hafenzeiten, ${travel.length} Anreise-Einträge, ${onboard.length} Buchungen an Bord.`);
+  console.log(`ℹ ${timed} Hafenzeiten, ${travel.length} Anreise-Einträge, ${onboard.length} Buchungen an Bord, ${cruises.filter((c) => c.album).length} Fotoalben.`);
   return { generated: new Date().toISOString(), cruises, stops, missed, diary, travel, onboard, countries, ships, warnings: warnings.length };
 }
 
