@@ -108,13 +108,14 @@ export async function collectPhotos({ key, keyId, cruises, stops, outDir, cacheD
   const photos = [];
   let undated = 0, unmatched = 0, failed = 0, cached = 0;
   const used = new Set();
+  const report = []; // Temporär: nur Drive-IDs, für die Aufräumaktion
   for (const f of files) {
     const when = takenAt(f);
-    if (!when) { undated++; continue; }
+    if (!when) { undated++; report.push({ why: 'ohne-datum', id: f.id }); continue; }
     const cruise = cruises.filter((c) => c.start <= when.d && when.d <= c.end).at(-1) || null;
     const sameDay = stops.filter((s) => s.d === when.d);
     const stop = sameDay.find((s) => s.type !== 'Landaufenthalt') || sameDay[0];
-    if (!cruise && !stop) { unmatched++; continue; }
+    if (!cruise && !stop) { unmatched++; report.push({ why: 'keine-reise', id: f.id }); continue; }
 
     const names = {};
     for (const [variant, size] of Object.entries(SIZES)) {
@@ -136,6 +137,7 @@ export async function collectPhotos({ key, keyId, cruises, stops, outDir, cacheD
   photos.sort((a, b) => (a.d + a.time).localeCompare(b.d + b.time));
   // Cache klein halten: gelöschte Fotos und alte Passwörter entfernen
   for (const f of await readdir(cacheDir)) if (f.endsWith('.bin') && !used.has(f)) await unlink(path.join(cacheDir, f));
+  if (process.env.PHOTO_REPORT) await writeFile(process.env.PHOTO_REPORT, JSON.stringify(report));
   console.log(`✓ ${photos.length} Fotos (${cached} Dateien aus dem Cache).`);
   if (undated) warn(`${undated} Fotos ohne Aufnahmedatum übersprungen.`);
   if (unmatched) warn(`${unmatched} Fotos passen zu keiner Reise und keinem Landaufenthalt.`);
