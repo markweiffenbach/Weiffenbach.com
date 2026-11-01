@@ -497,13 +497,13 @@ function renderMemory() {
       : n === 0 ? 'Einschiffung' : n === c.nights ? 'Ausschiffung' : 'Auf See';
     const entry = c.diary.find((e) => e.d === d && !e.phase);
     const photos = c.photos.filter((p) => p.d === d).slice(0, 4);
-    return `<button class="memory-item" type="button" data-trip="${c.id}">
+    return `<div class="memory-cell"><button class="memory-item" type="button" data-trip="${c.id}">
         <span class="memory-ago">vor ${plural(ago(d), 'Jahr', 'Jahren')}</span>
         <span class="memory-title">${esc(c.ship)} <small>${esc(c.route)}</small></span>
         <span class="memory-day">Tag ${n + 1} von ${c.nights + 1} · ${fmtDate(d)} · <b>${place}</b></span>
         ${entry ? `<span class="memory-entry"><b>${esc(entry.title)}</b>${entry.text ? ` – ${esc(entry.text.length > 180 ? entry.text.slice(0, 177).trimEnd() + ' …' : entry.text)}` : ''}</span>` : ''}
         ${photos.length ? `<span class="memory-photos">${photos.map((p) => `<img data-photo="${esc(p.t)}" alt="">`).join('')}</span>` : ''}
-      </button>`;
+      </button>${c.album ? `<a class="memory-album" href="${esc(c.album)}" target="_blank" rel="noopener noreferrer">Fotoalbum dieser Reise öffnen ↗</a>` : ''}</div>`;
   }).join('');
   el.innerHTML = `<div class="card-head"><div><h2>${when} vor ${[...new Set(hits.slice(0, 3).map((h) => ago(h.d)))].sort((a, b) => a - b).join(', ').replace(/, (\d+)$/, ' und $1')} ${hits.length === 1 && ago(hits[0].d) === 1 ? 'Jahr' : 'Jahren'}</h2><p class="card-sub">${offset === 0 ? 'An diesem Tag waren wir unterwegs' : `In ${plural(offset, 'Tag', 'Tagen')} jährt sich dieser Reisetag`}</p></div></div>
     <div class="memory-list">${items}</div>`;
@@ -808,7 +808,7 @@ function renderLog(m) {
   $('#log').innerHTML = [...byYear].map(([y, trips]) => `<li class="log-year">${y}</li>` + trips.map((c) => `
     <li class="trip${state.selected === c.id ? ' active' : ''}" data-id="${c.id}" tabindex="0" role="button" aria-label="Details zu ${esc(c.ship)}, ${esc(c.route)}">
       <span class="trip-date">${fmtDate(c.start, { day: '2-digit', month: '2-digit' })} – ${fmtDate(c.end, { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
-      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}${c.missed.length ? `<span class="badge warn">${fmt.format(c.missed.length)} ausgefallen</span>` : ''}${c.firstCalls.length ? `<span class="badge first">${plural(c.firstCalls.length, 'Erstanlauf', 'Erstanläufe')}</span>` : ''}${c.photos.length ? `<span class="badge">${plural(c.photos.length, 'Foto', 'Fotos')}</span>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
+      <span><span class="trip-title">${esc(c.ship)}<small>${esc(c.line)}</small>${c.planned ? '<span class="badge">geplant</span>' : ''}${c.onboard ? '<span class="badge">an Bord</span>' : ''}${c.cross.equator ? '<span class="badge">Äquator</span>' : ''}${c.cross.dateline ? '<span class="badge">Datumsgrenze</span>' : ''}${c.newPorts.length ? `<span class="badge">${plural(c.newPorts.length, 'neuer Hafen', 'neue Häfen')}</span>` : ''}${c.missed.length ? `<span class="badge warn">${fmt.format(c.missed.length)} ausgefallen</span>` : ''}${c.firstCalls.length ? `<span class="badge first">${plural(c.firstCalls.length, 'Erstanlauf', 'Erstanläufe')}</span>` : ''}${c.photos.length ? `<span class="badge">${plural(c.photos.length, 'Foto', 'Fotos')}</span>` : ''}${c.album ? `<a class="badge album" href="${esc(c.album)}" target="_blank" rel="noopener noreferrer" title="Fotoalbum in Google Fotos öffnen">Album ↗</a>` : ''}</span><br><span class="trip-route">${esc(c.route)}</span></span>
       <span class="trip-meta"><b>${c.nights}</b> Nächte<br>${plural(c.seaDays, 'Seetag', 'Seetage')} · ${fmt.format(Math.round(c.nm))} sm</span>
       <span class="trip-ports">${c.portNames.map((p) => (c.newPorts.includes(p) ? `<b>${esc(p)}</b>` : esc(p))).join(' · ') || '–'}</span>
     </li>`).join('')).join('') || '<li class="empty">Keine passende Reise.</li>';
@@ -817,7 +817,7 @@ function renderLog(m) {
   moreBtn.textContent = state.logAll ? 'Weniger anzeigen' : `Alle ${list.length} Reisen anzeigen`;
   document.querySelectorAll('.trip').forEach((t) => {
     const go = () => openTrip(DATA.cruises[+t.dataset.id]);
-    t.addEventListener('click', go);
+    t.addEventListener('click', (e) => { if (!e.target.closest('a')) go(); });
     t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });
 }
