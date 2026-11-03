@@ -121,7 +121,7 @@ Die A-Einträge sorgen dafür, dass auch `weiffenbach.com` ohne „www“ funkti
 
 ### 5. Starten
 
-Nach dem Merge auf `main` läuft der Workflow automatisch. Danach täglich um 04:17 UTC.
+Nach dem Merge auf `main` läuft der Workflow automatisch. Danach viermal täglich (01:43, 05:17, 11:37 und 17:23 UTC); GitHub startet geplante Läufe allerdings nur nach Möglichkeit, oft mit Verspätung. Sofort geht es über das Sheet-Menü „Homepage → Jetzt aktualisieren“.
 
 ## Fotos in der Reise-Detailansicht
 
