@@ -4,7 +4,12 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '17 4 * * *'   # täglich 04:17 UTC: neue Einträge im Sheet übernehmen
+    # Neue Einträge im Sheet übernehmen. GitHub startet geplante Läufe nur nach Möglichkeit (oft Stunden später,
+    # manchmal gar nicht) – daher mehrmals täglich: 01:43, 05:17, 11:37 und 17:23 UTC.
+    - cron: '43 1 * * *'
+    - cron: '17 5 * * *'
+    - cron: '37 11 * * *'
+    - cron: '23 17 * * *'
   workflow_dispatch:        # Knopf „Run workflow“ unter Actions
   repository_dispatch:
     types: [sheet-updated]  # optional: Menü im Google Sheet (tools/apps-script.gs)
