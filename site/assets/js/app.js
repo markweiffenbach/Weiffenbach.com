@@ -369,9 +369,8 @@ function setupFilters(years) {
 function setupChrome() {
   $('#logout').addEventListener('click', () => { forgetKey(); location.reload(); });
   $('#theme-btn').addEventListener('click', () => {
-    const dark = document.documentElement.dataset.theme
-      ? document.documentElement.dataset.theme === 'dark'
-      : matchMedia('(prefers-color-scheme: dark)').matches;
+    // Standard ist das dunkle Glas-Design; hell nur, wenn ausdrücklich gewählt
+    const dark = document.documentElement.dataset.theme !== 'light';
     const theme = dark ? 'light' : 'dark';
     applyTheme(theme);
     const p = readPrefs(); p.theme = theme; writePrefs(p);
