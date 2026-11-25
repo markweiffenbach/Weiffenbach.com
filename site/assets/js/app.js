@@ -75,8 +75,9 @@ async function onLogin(ev) {
   msg.textContent = '';
   if (!window.crypto?.subtle) { msg.textContent = INSECURE_MSG; return; }
   if (!blob) { msg.textContent = 'Der private Bereich ist gerade nicht verfügbar.'; return; }
+  const label = $('#gate-submit-label');
   btn.disabled = true;
-  btn.textContent = '…';
+  label.textContent = '…';
   try {
     const key = await deriveKey($('#pw').value, blob.iterations);
     const data = await decrypt(blob, key);
@@ -84,13 +85,13 @@ async function onLogin(ev) {
     start(data, key);
   } catch (err) {
     // Nur ein fehlgeschlagenes Entschlüsseln (OperationError) bedeutet ein falsches Passwort
-    msg.textContent = err?.name === 'OperationError' ? 'Das Passwort stimmt leider nicht.' : `Technischer Fehler: ${err?.message || err}`;
+    msg.textContent = err?.name === 'OperationError' ? 'Der Zugangscode stimmt leider nicht.' : `Technischer Fehler: ${err?.message || err}`;
     const gate = $('#gate');
     gate.classList.remove('shake'); void gate.offsetWidth; gate.classList.add('shake');
     $('#pw').select();
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Öffnen';
+    label.textContent = 'Eintreten';
   }
 }
 
