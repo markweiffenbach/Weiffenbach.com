@@ -140,7 +140,7 @@ function cardHtml(s) {
     linkHtml(`https://www.google.com/search?q=${encodeURIComponent(`${s.name} Deckplan`)}`, 'Deckplan suchen')].filter(Boolean).join('');
   return `<article class="ship-card" id="${shipSlug(s.name)}">
       <div class="ship-img">${i.img ? `<img data-photo="${esc(i.img)}" alt="${esc(s.name)}">` : ''}<span class="ship-ph">${shipIcon}</span>
-        ${i.img && i.wiki ? '<span class="ship-credit">Foto: Wikimedia Commons</span>' : ''}</div>
+        ${i.img && i.credit ? `<span class="ship-credit">Foto: ${esc(i.credit)}</span>` : i.img && i.wiki ? '<span class="ship-credit">Foto: Wikimedia Commons</span>' : ''}</div>
       <div class="ship-body">
         <h3>${esc(s.name)}${badges}</h3>
         <p class="ship-line">${esc(s.line)}${i.note ? ` · ${esc(i.note)}` : ''}</p>

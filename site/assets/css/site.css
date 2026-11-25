@@ -1,5 +1,36 @@
 /* ---------- Farben & Grundwerte ---------- */
 :root {
+  /* Standard: dunkles Glas-Design wie die Startseite (Strandfoto, Glaskarten) */
+  color-scheme: dark;
+  --page: #0a0a0a;
+  --surface: #161616;
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --glass: rgba(255, 255, 255, 0.05);
+  --ink: #f2f2f2;
+  --ink-2: rgba(255, 255, 255, 0.64);
+  --muted: rgba(255, 255, 255, 0.42);
+  --grid: rgba(255, 255, 255, 0.08);
+  --axis: rgba(255, 255, 255, 0.2);
+  --border: rgba(255, 255, 255, 0.10);
+  --accent: #7fb2ec;
+  --accent-soft: rgba(127, 178, 236, 0.38);
+  --accent-wash: rgba(255, 255, 255, 0.08);
+  --seq-1: #12304d; --seq-2: #184f95; --seq-3: #2a78d6; --seq-4: #5598e7; --seq-5: #7fb2ec; --seq-6: #b9d6f6;
+  --ocean: #0c141d;
+  --land: #1c1f23;
+  --land-line: #353b43;
+  --navy: transparent;
+  --navy-2: transparent;
+  --on-navy: #ffffff;
+  --on-navy-2: rgba(255, 255, 255, 0.55);
+  --good: #34c759;
+  --warn-wash: rgba(229, 160, 57, 0.24);
+  --first-wash: rgba(52, 199, 89, 0.20);
+  --shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
+  --radius: 16px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+:root[data-theme="light"] {
   color-scheme: light;
   --page: #f4f5f2;
   --surface: #fcfcfb;
@@ -27,30 +58,6 @@
   --shadow: 0 1px 2px rgba(11, 29, 48, 0.06), 0 8px 24px rgba(11, 29, 48, 0.06);
   --radius: 14px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #252524;
-    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
-    --accent: #3987e5; --accent-soft: rgba(57, 135, 229, 0.40); --accent-wash: rgba(57, 135, 229, 0.16); --warn-wash: rgba(229, 160, 57, 0.24); --first-wash: rgba(52, 199, 89, 0.20);
-    --seq-1: #12304d; --seq-2: #184f95; --seq-3: #1c5cab; --seq-4: #2a78d6; --seq-5: #5598e7; --seq-6: #9ec5f4;
-    --ocean: #0f1a26; --land: #22252a; --land-line: #3a3f46;
-    --navy: #07131f; --navy-2: #0e2338;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #252524;
-  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
-  --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
-  --accent: #3987e5; --accent-soft: rgba(57, 135, 229, 0.40); --accent-wash: rgba(57, 135, 229, 0.16); --warn-wash: rgba(229, 160, 57, 0.24); --first-wash: rgba(52, 199, 89, 0.20);
-  --seq-1: #12304d; --seq-2: #184f95; --seq-3: #1c5cab; --seq-4: #2a78d6; --seq-5: #5598e7; --seq-6: #9ec5f4;
-  --ocean: #0f1a26; --land: #22252a; --land-line: #3a3f46;
-  --navy: #07131f; --navy-2: #0e2338;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 * { box-sizing: border-box; }
@@ -550,3 +557,43 @@ html.no-scroll { overflow: hidden; }
 .badge.album:hover { background: var(--accent-wash); }
 .memory-album { font-size: 13px; padding-left: 4px; color: var(--accent); }
 .tp-album { text-decoration: none; display: inline-block; }
+
+/* ---------- Glas-Design (Standard, nicht im hellen Modus) ---------- */
+:root:not([data-theme="light"]) body { background: #0a0a0a; }
+:root:not([data-theme="light"]) #app::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(10, 10, 10, .55) 0%, rgba(10, 10, 10, .82) 45%, rgba(10, 10, 10, .92) 100%),
+    url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80") center / cover no-repeat,
+    radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
+}
+:root:not([data-theme="light"]) :is(.card, .kpi, .next, .arch-port, .ship-card) {
+  background: var(--glass); border-color: rgba(255, 255, 255, .1);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+:root:not([data-theme="light"]) :is(.fact, .memory-item, .entry, .tp-stats div, .tp-ship, .map-focus) { background: var(--glass); }
+:root:not([data-theme="light"]) .map-focus { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(16, 16, 16, .72); }
+:root:not([data-theme="light"]) .arch-port .entry { background: rgba(255, 255, 255, .04); }
+:root:not([data-theme="light"]) .card h2 { font-size: 14px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .9); }
+:root:not([data-theme="light"]) :is(.kpi-label, .fact-label, .memory-ago) { letter-spacing: .08em; text-transform: uppercase; font-size: 11px; color: rgba(255, 255, 255, .5); }
+:root:not([data-theme="light"]) .hero-label, :root:not([data-theme="light"]) .next-kicker, :root:not([data-theme="light"]) .tp-kicker { letter-spacing: .2em; color: rgba(255, 255, 255, .55); }
+:root:not([data-theme="light"]) .hero-figure { font-weight: 500; }
+:root:not([data-theme="light"]) .brand-title { letter-spacing: .12em; text-transform: uppercase; font-weight: 500; font-size: 15px; }
+:root:not([data-theme="light"]) :is(.brand-mark, .icon-btn) { border-radius: 50%; }
+:root:not([data-theme="light"]) .brand-mark { background: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .85); }
+:root:not([data-theme="light"]) .icon-btn { border-color: rgba(255, 255, 255, .15); background: rgba(255, 255, 255, .06); }
+:root:not([data-theme="light"]) .text-btn { border-color: rgba(255, 255, 255, .15); border-radius: 12px; color: rgba(255, 255, 255, .8); }
+:root:not([data-theme="light"]) .text-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .1); color: #fff; }
+:root:not([data-theme="light"]) :is(.filter select, .search) { background-color: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .15); border-radius: 12px; }
+:root:not([data-theme="light"]) :is(.filter select, .search):focus { outline: none; box-shadow: 0 0 0 2px rgba(255, 255, 255, .3); }
+:root:not([data-theme="light"]) .filter select option { background: #161616; color: #f2f2f2; }
+:root:not([data-theme="light"]) .filters { background: rgba(10, 10, 10, .7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+:root:not([data-theme="light"]) .next-bar i { background: #fff; }
+:root:not([data-theme="light"]) .chip.on { background: #fff; color: #0a0a0a; }
+:root:not([data-theme="light"]) #map { border-color: rgba(255, 255, 255, .1); }
+:root:not([data-theme="light"]) .panel { background: rgba(0, 0, 0, .55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+:root:not([data-theme="light"]) .panel-sheet { background: #0d0d0d; border-left: 1px solid rgba(255, 255, 255, .08); }
+:root:not([data-theme="light"]) .tp-head { background: rgba(13, 13, 13, .85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255, 255, 255, .08); }
+:root:not([data-theme="light"]) .tp-badges .badge { background: rgba(255, 255, 255, .1); }
+:root:not([data-theme="light"]) .tooltip { background: rgba(22, 22, 22, .92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+:root:not([data-theme="light"]) .foot { color: rgba(255, 255, 255, .3); letter-spacing: .08em; }

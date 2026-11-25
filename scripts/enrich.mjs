@@ -111,6 +111,27 @@ async function commonsFile(file) {
   return info ? { thumb: info.thumburl || info.url, page: info.descriptionurl || '' } : null;
 }
 
+// Bild direkt von der Reederei: Bild-URL oder Schiffsseite (dann das Vorschaubild og:image der Seite)
+const BROWSER = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,image/avif,image/webp,image/*,*/*;q=0.8', 'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8' };
+async function webImage(url) {
+  try {
+    const res = await fetch(url, { headers: BROWSER, redirect: 'follow', signal: AbortSignal.timeout(20000) });
+    if (!res.ok) return null;
+    const type = res.headers.get('content-type') || '';
+    if (type.startsWith('image/')) return { url: res.url, bytes: Buffer.from(await res.arrayBuffer()) };
+    if (!type.includes('html')) return null;
+    const html = await res.text();
+    const meta = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image)["'][^>]*>/i)?.[0];
+    const src = meta?.match(/content=["']([^"']+)["']/i)?.[1];
+    if (!src) return null;
+    const img = new URL(src.replace(/&amp;/g, '&'), res.url).href;
+    const r2 = await fetch(img, { headers: { ...BROWSER, Referer: res.url }, signal: AbortSignal.timeout(20000) });
+    if (!r2.ok || !(r2.headers.get('content-type') || '').startsWith('image/')) return null;
+    return { url: img, bytes: Buffer.from(await r2.arrayBuffer()) };
+  } catch { return null; }
+}
+
 async function findShipImage(name, override) {
   const file = override.match(/^(?:commons:)?(?:File|Datei):(.+)$/i);
   if (file) {
@@ -140,12 +161,19 @@ async function findShipImage(name, override) {
 export async function addShipImages(ships, cache, { key, keyId, outDir, encryptBytes, offline = false }) {
   cache.shipImg ||= {};
   let fetched = 0, missing = 0;
+  const officialFailed = [];
   await mkdir(path.join(outDir, 'photos'), { recursive: true });
   for (const [name, ship] of Object.entries(ships)) {
     const want = ship.imgSrc || '';
     let c = cache.shipImg[name];
     const stale = !c || c.src !== want || c.v !== 2 || (c.fail && Date.now() - c.fail > 7 * 86400000);
-    if (stale && !offline) {
+    if (stale && !offline && /^https?:\/\//i.test(want)) {
+      // Reederei-Bild; klappt der Abruf nicht, bleibt das bisherige Bild stehen
+      const w = await webImage(want);
+      const article = w ? await findShipImage(name, '') : null;
+      if (w) { c = cache.shipImg[name] = { v: 2, src: want, page: article?.page || '', credit: new URL(want).hostname.replace(/^www\./, ''), data: w.bytes.toString('base64') }; fetched++; }
+      else officialFailed.push(name);
+    } else if (stale && !offline) {
       const s = await findShipImage(name, want);
       let bytes = null;
       if (s) {
@@ -165,6 +193,7 @@ export async function addShipImages(ships, cache, { key, keyId, outDir, encryptB
     await writeFile(path.join(outDir, 'photos', `${file}.bin`), await encryptBytes(Buffer.from(c.data, 'base64'), key));
     ship.img = file;
     ship.wiki = c.page;
+    if (c.credit) ship.credit = c.credit;
   }
-  return { fetched, missing };
+  return { fetched, missing, officialFailed };
 }

@@ -497,6 +497,7 @@ const keyId = createHash('sha256').update(Buffer.from(await crypto.subtle.export
 {
   const si = await addShipImages(data.ships, cache, { key, keyId, outDir: OUT, encryptBytes, offline: !!FROM_JSON });
   console.log(`ℹ Schiffsbilder: ${si.fetched} neu geladen, ${si.missing} ohne Bild.`);
+  if (si.officialFailed?.length) console.log(`ℹ Reederei-Bilder: ${si.officialFailed.length} nicht abrufbar, dort bleibt das bisherige Bild.`);
 }
 await saveCache(CACHE_DIR, cache, key);
 
