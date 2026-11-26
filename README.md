@@ -12,6 +12,8 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 - **Unterwegs** zeigt die Kachel „Heute & Morgen“ den Tagesplan: Hafen mit Liegezeit, Anreise und Hotels, Buchungen an
   Bord und die Tagebuch-Einträge, auch im Vor- und Nachprogramm. Nach dem ersten Besuch funktioniert die Seite **offline**
   (Service Worker `site/sw.js`); gespeichert werden nur die öffentlichen bzw. verschlüsselten Dateien, Fotos erst beim Ansehen.
+- **Hintergrund:** Die Startseite zeigt ein Strandfoto (Unsplash), das der Build nach `assets/img/bg.jpg` lädt und selbst
+  ausliefert. Nach dem Login liegt dahinter jeden Tag ein anderes eigenes Reisefoto im Querformat (verschlüsselt wie alle Fotos).
 - Die Reisedaten liegen **nur verschlüsselt** auf dem Server (AES-256-GCM, Schlüssel per PBKDF2 aus dem Passwort abgeleitet).
   Ohne Passwort lassen sie sich nicht lesen, auch nicht im Quelltext.
 

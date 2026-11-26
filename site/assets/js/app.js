@@ -123,6 +123,7 @@ function start(data, key) {
   bind('generated', fmtDate(DATA.generated.slice(0, 10)));
   setupFilters(years);
   setupChrome();
+  setBackdrop();
   renderNext();
   renderToday();
   renderMemory();
@@ -470,6 +471,22 @@ function renderNext() {
     <div class="next-count"><b>${left === 1 ? 'Morgen' : fmt.format(left)}</b><span>${left === 1 ? 'geht es los' : 'Tage bis zum Ablegen'}</span></div>
     <div class="next-bar" title="Vorfreude seit der letzten Reise"><i style="width:${span ? Math.max(2, 100 - (left / span) * 100) : 100}%"></i></div>
     ${later > 0 ? `<p class="next-route" style="margin-top:10px">und ${plural(later, 'weitere Reise', 'weitere Reisen')} geplant</p>` : ''}`;
+}
+
+// Hintergrund hinter dem Login: jeden Tag eines unserer eigenen Reisefotos (Querformat), sonst das Strandfoto
+async function setBackdrop() {
+  const all = DATA.cruises.flatMap((c) => c.photos).filter((p) => p.l);
+  if (!all.length) return;
+  let seed = [...TODAY].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  for (let i = 0; i < 6; i++, seed = (seed * 1103515245 + 12345) >>> 0) {
+    try {
+      const url = await photoURL(all[seed % all.length].l);
+      const img = new Image(); img.src = url; await img.decode();
+      if (img.naturalWidth < img.naturalHeight * 1.2) continue; // Hochformat passt nicht als Hintergrund
+      document.documentElement.style.setProperty('--bg-photo', `url("${url}")`);
+      return;
+    } catch { /* nächstes Foto versuchen */ }
+  }
 }
 
 // „Heute & Morgen“: was unterwegs ansteht – Hafen mit Liegezeit, Anreise, Buchungen an Bord und Tagebuch.

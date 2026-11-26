@@ -3,7 +3,7 @@
 // so passen sie nach einem Update immer zusammen. Fotos, Landkarte, Bibliotheken und das Hintergrundfoto:
 // sofort aus dem Speicher, im Hintergrund aktualisieren.
 // Alles Gespeicherte ist dieselbe öffentliche bzw. verschlüsselte Fassung, die auch der Server ausliefert.
-const CACHE = 'wb-offline-v1';
+const CACHE = 'wb-offline-v2';
 const SHELL = [
   './', 'index.html', 'data/data.enc.json',
   'assets/css/site.css', 'assets/vendor/leaflet/leaflet.css', 'assets/vendor/leaflet/leaflet.js', 'assets/vendor/topojson-client.min.js',
@@ -46,6 +46,6 @@ self.addEventListener('fetch', (ev) => {
   const url = new URL(req.url);
   const same = url.origin === location.origin;
   if (same && (req.mode === 'navigate' || FRESH.test(url.pathname))) { ev.respondWith(networkFirst(req)); return; }
-  // eigene Dateien und das Hintergrundfoto
-  if (same || url.hostname === 'images.unsplash.com') ev.respondWith(cacheFirst(req, ev));
+  // eigene Dateien (Fotos, Landkarte, Bibliotheken, Hintergrundfoto)
+  if (same) ev.respondWith(cacheFirst(req, ev));
 });
