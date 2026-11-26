@@ -633,3 +633,16 @@ body { background: var(--page); }
 .tp-badges .badge { background: var(--ctl-bg); }
 .tooltip { background: var(--glass-solid); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .foot { color: var(--muted); letter-spacing: .08em; }
+
+/* ---------- Heute & Morgen (unterwegs) ---------- */
+.today { margin-top: 12px; }
+.today-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.today-day { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--glass-border, var(--border)); background: var(--glass, var(--surface)); }
+.today-when { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--label, var(--ink-2)); }
+.today-place { font-size: 19px; font-weight: 600; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.today-place .link-btn { font-size: inherit; }
+.today-place small { font-size: 13px; font-weight: 400; color: var(--ink-2); }
+.today-ship { font-size: 13px; color: var(--ink-2); }
+.today-ship .link-btn { font-weight: 500; }
+.today-list { margin-top: 4px; }
+.today .tp-diary { margin-top: 4px; }

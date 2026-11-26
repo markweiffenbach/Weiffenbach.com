@@ -9,6 +9,9 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
   und „Heute vor X Jahren“ (welche Reise an diesem Kalendertag lief, sonst der nächste solche Tag im kommenden Monat).
   Kacheln, Rekorde, Diagrammbalken und Länder-Flaggen sind anklickbar und führen zur passenden Reise, zum Hafen, zum
   Schiff, ins Hafen-Archiv oder setzen den Filter (z. B. Jahr, Reederei, Fahrtgebiet).
+- **Unterwegs** zeigt die Kachel „Heute & Morgen“ den Tagesplan: Hafen mit Liegezeit, Anreise und Hotels, Buchungen an
+  Bord und die Tagebuch-Einträge, auch im Vor- und Nachprogramm. Nach dem ersten Besuch funktioniert die Seite **offline**
+  (Service Worker `site/sw.js`); gespeichert werden nur die öffentlichen bzw. verschlüsselten Dateien, Fotos erst beim Ansehen.
 - Die Reisedaten liegen **nur verschlüsselt** auf dem Server (AES-256-GCM, Schlüssel per PBKDF2 aus dem Passwort abgeleitet).
   Ohne Passwort lassen sie sich nicht lesen, auch nicht im Quelltext.
 

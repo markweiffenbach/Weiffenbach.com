@@ -5,7 +5,7 @@ import { initTripPanel, openTrip, setPhotoKey, photoURL } from './trip.js';
 import { initArchive, showArchive, filterArchive } from './archive.js';
 import { initShips, showShips } from './ships.js';
 import { seasOf } from './seas.js';
-import { utc } from './diary.js';
+import { utc, entryHtml, fmtDay, stopDetails, kindIcon, flagEmoji } from './diary.js';
 
 const $ = (s) => document.querySelector(s);
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -54,6 +54,8 @@ async function ensureSecure() {
 
 async function init() {
   $('#year').textContent = now.getFullYear();
+  // Offline-Speicher für unterwegs (an Bord ohne Internet); nur über https
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Offline-Speicher nicht verfügbar:', e?.message || e));
   applyTheme(readPrefs().theme);
   $('#gate-form').addEventListener('submit', onLogin);
   if (!(await ensureSecure())) return;
@@ -122,6 +124,7 @@ function start(data, key) {
   setupFilters(years);
   setupChrome();
   renderNext();
+  renderToday();
   renderMemory();
   map = new TripMap('map', { onSelectCruise: selectCruise, onOpenTrip: (id) => openTrip(DATA.cruises[id]), onOpenPort: showPort });
   initTripPanel({
@@ -467,6 +470,51 @@ function renderNext() {
     <div class="next-count"><b>${left === 1 ? 'Morgen' : fmt.format(left)}</b><span>${left === 1 ? 'geht es los' : 'Tage bis zum Ablegen'}</span></div>
     <div class="next-bar" title="Vorfreude seit der letzten Reise"><i style="width:${span ? Math.max(2, 100 - (left / span) * 100) : 100}%"></i></div>
     ${later > 0 ? `<p class="next-route" style="margin-top:10px">und ${plural(later, 'weitere Reise', 'weitere Reisen')} geplant</p>` : ''}`;
+}
+
+// „Heute & Morgen“: was unterwegs ansteht – Hafen mit Liegezeit, Anreise, Buchungen an Bord und Tagebuch.
+// Erscheint nur, wenn für heute oder morgen etwas eingetragen ist (Reisetage, Vor- und Nachprogramm).
+const addDay = (d, n) => new Date(Date.parse(d + 'T12:00:00Z') + n * 86400000).toISOString().slice(0, 10);
+function dayPlan(d) {
+  const c = DATA.cruises.find((x) => x.start <= d && d <= x.end);
+  const legs = DATA.stops.filter((s) => s.d === d && s.type !== 'Landaufenthalt' && (!c || (c.start <= s.d && s.d <= c.end)));
+  const entries = DATA.diary.filter((e) => e.d === d);
+  const travel = DATA.travel.filter((t) => t.d === d);
+  const aboard = c ? c.aboard.filter((o) => o.d === d) : [];
+  if (!c && !entries.length && !travel.length) return null;
+  return { d, c, legs, entries, travel, aboard };
+}
+function dayHtml(p, label) {
+  const { d, c, legs, entries, travel, aboard } = p;
+  const n = c ? dayDiff(c.start, d) : null;
+  const places = legs.map((s) => {
+    const meta = DATA.countries[s.country] || {};
+    return `<p class="today-place"><button class="link-btn" type="button" data-port="${esc(s.port)}">${esc(s.port)}</button>
+      <small>${meta.a2 ? flagEmoji(meta.a2) + ' ' : ''}${esc(s.country)}</small>${stopDetails(s)}</p>`;
+  }).join('');
+  const sea = c && !legs.length ? `<p class="today-place">${n === 0 ? 'Einschiffung' : n === c.nights ? 'Ausschiffung' : 'Auf See'}</p>` : '';
+  const where = !c && !legs.length && entries[0]?.port ? `<p class="today-place">${esc(entries[0].place || entries[0].port)}</p>` : '';
+  const ship = c ? `<p class="today-ship"><button class="link-btn" type="button" data-trip="${c.id}">${esc(c.ship)}</button> · Tag ${n + 1} von ${c.nights + 1}</p>` : '';
+  const tr = travel.map((t) => `<li>${kindIcon(t.kind)} <b>${esc(t.kind)}</b> ${t.from && t.to ? `${esc(t.from)} → ${esc(t.to)}` : esc(t.from || t.to)}${t.by ? ` <small>${esc(t.by)}</small>` : ''}${t.note ? ` <small>· ${esc(t.note)}</small>` : ''}</li>`).join('');
+  const ab = aboard.map((o) => `<li>${kindIcon(o.kind)} <b>${esc(o.name)}</b>${o.kind ? ` <small>${esc(o.kind)}</small>` : ''}${o.note ? ` – ${esc(o.note)}` : ''}</li>`).join('');
+  const diary = entries.map((e) => entryHtml(e, { port: legs.length ? legs.length !== 1 || e.port !== legs[0].port : !!c })).join('');
+  return `<div class="today-day">
+      <p class="today-when">${label} · ${fmtDay(d)}</p>
+      ${places}${sea}${where}${ship}
+      ${tr ? `<ul class="tp-travel today-list">${tr}</ul>` : ''}
+      ${ab ? `<ul class="tp-aboard today-list">${ab}</ul>` : ''}
+      ${diary ? `<div class="tp-diary">${diary}</div>` : ''}
+    </div>`;
+}
+function renderToday() {
+  const el = $('#today');
+  const days = [[TODAY, 'Heute'], [addDay(TODAY, 1), 'Morgen']].map(([d, label]) => [dayPlan(d), label]).filter(([p]) => p);
+  if (!days.length) { el.hidden = true; return; }
+  el.innerHTML = `<div class="card-head"><div><h2>${days.length === 2 ? 'Heute & Morgen' : days[0][1]}</h2><p class="card-sub">Euer Plan unterwegs${navigator.onLine ? '' : ' · offline gespeichert'}</p></div></div>
+    <div class="today-grid">${days.map(([p, label]) => dayHtml(p, label)).join('')}</div>`;
+  el.hidden = false;
+  el.querySelectorAll('[data-trip]').forEach((b) => b.addEventListener('click', () => openTrip(DATA.cruises[+b.dataset.trip])));
+  el.querySelectorAll('[data-port]').forEach((b) => b.addEventListener('click', () => showPort(b.dataset.port)));
 }
 
 // „Heute vor X Jahren“: welche Reise an diesem Kalendertag lief; sonst der nächste solche Tag in den kommenden 30 Tagen
