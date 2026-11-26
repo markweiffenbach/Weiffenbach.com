@@ -85,7 +85,7 @@ async function summary(lang, title) {
   let thumb = j.thumbnail?.source || j.originalimage?.source;
   if (!thumb) {
     // manche Artikel liefern das Bild nur über die Seitenbilder-Abfrage
-    const q = await getJSON(`https://${lang}.wikipedia.org/w/api.php?action=query&format=json&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=640&titles=${encodeURIComponent(j.title)}`);
+    const q = await getJSON(`https://${lang}.wikipedia.org/w/api.php?action=query&format=json&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=1280&titles=${encodeURIComponent(j.title)}`);
     thumb = Object.values(q?.query?.pages || {})[0]?.thumbnail?.source;
   }
   return thumb ? { thumb, page: j.content_urls?.desktop?.page || '', title: j.title } : null;
@@ -106,7 +106,7 @@ async function search(lang, name) {
 // bestimmtes Foto aus Wikimedia Commons („File:…“ / „Datei:…“), z. B. eines aus früherer Bemalung
 async function commonsFile(file) {
   const title = `File:${file.trim()}`;
-  const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&redirects=1&prop=imageinfo&iiprop=url&iiurlwidth=640&titles=${encodeURIComponent(title)}`);
+  const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&redirects=1&prop=imageinfo&iiprop=url&iiurlwidth=1280&titles=${encodeURIComponent(title)}`);
   const info = Object.values(q?.query?.pages || {})[0]?.imageinfo?.[0];
   return info ? { thumb: info.thumburl || info.url, page: info.descriptionurl || '' } : null;
 }
@@ -166,25 +166,25 @@ export async function addShipImages(ships, cache, { key, keyId, outDir, encryptB
   for (const [name, ship] of Object.entries(ships)) {
     const want = ship.imgSrc || '';
     let c = cache.shipImg[name];
-    const stale = !c || c.src !== want || c.v !== 2 || (c.fail && Date.now() - c.fail > 7 * 86400000);
+    const stale = !c || c.src !== want || c.v !== 3 || (c.fail && Date.now() - c.fail > 7 * 86400000);
     if (stale && !offline && /^https?:\/\//i.test(want)) {
       // Reederei-Bild; klappt der Abruf nicht, bleibt das bisherige Bild stehen
       const w = await webImage(want);
       const article = w ? await findShipImage(name, '') : null;
-      if (w) { c = cache.shipImg[name] = { v: 2, src: want, page: article?.page || '', credit: new URL(want).hostname.replace(/^www\./, ''), data: w.bytes.toString('base64') }; fetched++; }
+      if (w) { c = cache.shipImg[name] = { v: 3, src: want, page: article?.page || '', credit: new URL(want).hostname.replace(/^www\./, ''), data: w.bytes.toString('base64') }; fetched++; }
       else officialFailed.push(name);
     } else if (stale && !offline) {
       const s = await findShipImage(name, want);
       let bytes = null;
       if (s) {
         try {
-          const url = s.thumb.replace(/\/\d+px-/, '/640px-');
+          const url = s.thumb.replace(/\/\d+px-/, '/1280px-');
           let res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(20000) });
           if (!res.ok) res = await fetch(s.thumb, { headers: UA, signal: AbortSignal.timeout(20000) });
           if (res.ok) bytes = Buffer.from(await res.arrayBuffer());
         } catch { /* nächster Lauf */ }
       }
-      c = cache.shipImg[name] = bytes ? { v: 2, src: want, page: s.page, data: bytes.toString('base64') } : { v: 2, src: want, fail: Date.now() };
+      c = cache.shipImg[name] = bytes ? { v: 3, src: want, page: s.page, data: bytes.toString('base64') } : { v: 3, src: want, fail: Date.now() };
       if (bytes) fetched++;
     }
     delete ship.imgSrc;
