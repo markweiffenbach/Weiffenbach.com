@@ -81,14 +81,14 @@ h1, h2, h3, p { margin: 0; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 24px 16px 72px; text-align: center; color: #fff; background: #0a0a0a;
 }
-/* Hintergrundfoto (Unsplash) mit dunklem Schleier; ohne Foto bleibt ein dunkler Verlauf */
+/* Hintergrundfoto (Strandfoto von Unsplash, beim Build mit auf die Seite gelegt) mit dunklem Schleier; ohne Foto bleibt ein dunkler Verlauf */
 .gate-bg {
   position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
 }
 .gate-bg::before {
   content: ""; position: absolute; inset: 0; transform: scale(1.05);
-  background: url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80") center / cover no-repeat;
+  background: url("../img/bg.jpg") center / cover no-repeat;
   animation: gate-zoom 1.2s ease-out both;
 }
 .gate-bg::after {
@@ -597,7 +597,7 @@ body { background: var(--page); }
 #app::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: var(--veil),
-    url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80") center / cover no-repeat,
+    var(--bg-photo, url("../img/bg.jpg")) center / cover no-repeat,
     radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
 }
 :is(.card, .kpi, .next, .arch-port, .ship-card) {
