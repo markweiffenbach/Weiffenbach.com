@@ -71,32 +71,60 @@ async function searchPD(shipName) {
   }
   return null;
 }
+// Openverse (Bildersuche über Flickr, Commons, Museen, Behörden): nur CC0 und Public Domain Mark
+async function openversePD(shipName) {
+  const want = squash(shipName);
+  const q = await getJSON(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(`"${shipName}"`)}&license=cc0,pdm&page_size=40`);
+  for (const r of q?.results || []) {
+    if (!['cc0', 'pdm'].includes(String(r.license).toLowerCase()) || !r.url) continue;
+    if (!squash(`${r.title || ''}`).includes(want)) continue;
+    if (!(r.width >= 800 && r.width > r.height * 1.2)) continue;
+    return { url: r.url, page: r.foreign_landing_url || r.url, license: r.license === 'cc0' ? 'CC0' : 'Public Domain', source: r.source || 'Openverse' };
+  }
+  return null;
+}
+async function download(url, file) {
+  let res = null;
+  for (let attempt = 0; attempt < 3 && !res?.ok; attempt++) {
+    await new Promise((r) => setTimeout(r, 250 + attempt * 1500));
+    res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(30000) }).catch(() => null);
+  }
+  if (!res?.ok || !/^image\//.test(res.headers.get('content-type') || '')) return false;
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, Buffer.from(await res.arrayBuffer()));
+  return true;
+}
+const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'Quelle'; } };
+
+// Reihenfolge: Spalte „Bild öffentlich“ (File:… aus Commons, https-Link auf ein selbst geprüftes gemeinfreies Bild oder „kein“),
+// sonst gemeinfreies Titelbild bzw. Suche in Wikimedia Commons, sonst Openverse.
 async function shipPhoto(ship, cache, dir, offline) {
-  const key = `v2|${ship.name}|${ship.src}`;
+  const manual = (ship.pubImg || '').trim();
+  if (/^(kein|keins|nein|-|–)$/i.test(manual)) return null;
+  const key = `v3|${ship.name}|${ship.src}|${manual}`;
   const file = path.join(dir, `${ship.slug}.jpg`);
   if (cache[key]?.file && cache[key].pd) { try { await access(file); return cache[key]; } catch { /* neu laden */ } }
   // Erfolglose Suchen eine Woche lang nicht wiederholen – sonst dauert jeder Build viele Minuten
   if (cache[key]?.fail && Date.now() - cache[key].fail < 7 * 86400000) return null;
   if (offline) return null;
   const failed = () => { cache[key] = { fail: Date.now() }; return null; };
-  // 1. fest gewähltes Commons-Foto oder Titelbild des Wikipedia-Artikels, wenn gemeinfrei; 2. sonst Commons durchsuchen
-  const name = await commonsFileName(ship.name, /^https?:/i.test(ship.src) ? '' : ship.src);
+  const done = (c) => { cache[key] = { pd: true, file: `${ship.slug}.jpg`, ...c }; return cache[key]; };
+
+  if (/^https:\/\//i.test(manual)) { // selbst ausgewählt und geprüft
+    return (await download(manual, file)) ? done({ license: 'gemeinfrei', page: manual, source: host(manual) }) : failed();
+  }
+  const fileName = /^(?:commons:)?(?:File|Datei):/i.test(manual) ? manual : (/^https?:/i.test(ship.src) ? '' : ship.src);
+  const name = await commonsFileName(ship.name, fileName);
   let info = name ? await fileInfo(name) : null;
   if (!isPD(info)) info = await searchPD(ship.name);
-  if (!info) return failed();
-  const m = info.extmetadata || {};
-  try {
-    let res = null;
-    for (let attempt = 0; attempt < 3 && !res?.ok; attempt++) {
-      await new Promise((r) => setTimeout(r, 250 + attempt * 1500));
-      res = await fetch(info.thumburl || info.url, { headers: UA, signal: AbortSignal.timeout(30000) }).catch(() => null);
-    }
-    if (!res?.ok) return failed();
-    await mkdir(dir, { recursive: true });
-    await writeFile(file, Buffer.from(await res.arrayBuffer()));
-  } catch { return null; }
-  cache[key] = { pd: true, file: `${ship.slug}.jpg`, license: strip(m.LicenseShortName?.value) || 'gemeinfrei', page: info.descriptionurl };
-  return cache[key];
+  if (info) {
+    const m = info.extmetadata || {};
+    return (await download(info.thumburl || info.url, file))
+      ? done({ license: strip(m.LicenseShortName?.value) || 'gemeinfrei', page: info.descriptionurl, source: 'Wikimedia Commons' }) : failed();
+  }
+  const ov = await openversePD(ship.name);
+  if (ov && await download(ov.url, file)) return done({ license: ov.license, page: ov.page, source: ov.source === 'flickr' ? 'Flickr' : ov.source });
+  return failed();
 }
 
 // ---------- Seitenrahmen ----------
@@ -126,7 +154,7 @@ ${body}
 </main>
 <footer class="foot wrap">
   <p>Persönliche Erfahrungen von Kreuzfahrten, ohne Gewähr. Preise, Öffnungszeiten und Wege ändern sich – vor Ort prüfen.</p>
-  <p>Länder: Natural Earth (gemeinfrei) · Schiffsfotos: Wikimedia Commons, nur gemeinfreie Bilder</p>
+  <p>Länder: Natural Earth (gemeinfrei) · Schiffsfotos: nur gemeinfreie Bilder (Wikimedia Commons, Openverse), Quelle am Bild</p>
   <p><a href="/impressum/">Impressum</a> · <a href="/datenschutz/">Datenschutz</a></p>
 </footer>
 </body>
@@ -228,7 +256,7 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
       body: `<nav class="crumbs"><a href="/schiffe/">Schiffe</a> › ${esc(s.name)}</nav>
       <section class="hero"><p class="kicker">${esc(s.line)}</p><h1>${esc(s.name)}</h1></section>
       ${s.photo ? `<figure class="ship-photo card"><img src="/assets/img/schiffe/${s.photo.file}" alt="${esc(s.name)}" loading="lazy">
-        <figcaption>Gemeinfreies Foto (${esc(s.photo.license)}) · <a href="${esc(s.photo.page)}" rel="noopener" target="_blank">Wikimedia Commons ↗</a></figcaption></figure>` : ''}
+        <figcaption>Gemeinfreies Foto (${esc(s.photo.license)}) · <a href="${esc(s.photo.page)}" rel="noopener" target="_blank">${esc(s.photo.source || 'Wikimedia Commons')} ↗</a></figcaption></figure>` : ''}
       <div class="grid-2">
         <section class="card"><h2>Fazit</h2>${s.rating || s.verdict ? `<p class="verdict">${stars(s.rating)}</p>${s.verdict ? `<p>${esc(s.verdict)}</p>` : ''}` : '<p class="muted">Folgt.</p>'}</section>
         <section class="card"><h2>Steckbrief</h2><dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
@@ -295,7 +323,7 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
       <p>Die Tipps beruhen auf eigenen Erfahrungen und wurden sorgfältig erstellt; für Richtigkeit, Vollständigkeit und Aktualität wird keine Gewähr übernommen. Preise, Öffnungszeiten und Wege können sich geändert haben.</p>
       <p>Für Inhalte verlinkter fremder Websites sind ausschließlich deren Betreiber verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar; bei Bekanntwerden werden entsprechende Links entfernt.</p></section>
     <section class="card prose"><h2>Bildnachweise</h2>
-      <p>Schiffsfotos stammen aus Wikimedia Commons und werden nur gezeigt, wenn sie gemeinfrei sind (Public Domain oder CC0); die Quelle steht unter jedem Bild. Ländergrenzen: Natural Earth (gemeinfrei).</p></section>` }));
+      <p>Schiffsfotos werden nur gezeigt, wenn sie gemeinfrei sind (Public Domain oder CC0); sie stammen aus Wikimedia Commons oder über Openverse (z. B. Flickr), die Quelle steht unter jedem Bild. Ländergrenzen: Natural Earth (gemeinfrei).</p></section>` }));
   files.set('datenschutz/index.html', page({ title: 'Datenschutzerklärung | Häfen & Schiffe', canonical: '/datenschutz/', desc: 'Informationen zum Datenschutz.', head: '<meta name="robots" content="noindex">',
     body: `<section class="hero"><p class="kicker">Rechtliches</p><h1>Datenschutzerklärung</h1><p class="lead">Stand: ${esc(stand)}</p></section>
     <section class="card prose"><h2>Verantwortlicher</h2>${contact}</section>
