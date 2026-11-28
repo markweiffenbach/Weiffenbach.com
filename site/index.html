@@ -3,10 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>weiffenbach.com</title>
-  <meta name="robots" content="noindex, follow">
+  <title>Häfen &amp; Schiffe · weiffenbach.com</title>
   <meta name="description" content="Landgang-Tipps für Kreuzfahrthäfen und Erfahrungen mit Kreuzfahrtschiffen.">
-  <meta name="description" content="Weiffenbach – private Homepage.">
   <meta name="theme-color" content="#0b1d30">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1d30'/%3E%3Cpath d='M12 38c5 0 5-4 10-4s5 4 10 4 5-4 10-4 5 4 10 4' fill='none' stroke='%237fb2ec' stroke-width='4' stroke-linecap='round'/%3E%3Ctext x='32' y='30' font-family='system-ui,sans-serif' font-size='22' font-weight='600' fill='%23fff' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css">
@@ -14,30 +12,59 @@
 </head>
 <body>
 
-<!-- Öffentliche Startseite mit Passwortfeld -->
-<main id="gate" class="gate" aria-labelledby="gate-title">
+<!-- Öffentliche Startseite: Dashboard ohne Anmeldung, Anmelden oben rechts -->
+<div id="gate" class="pub">
   <div class="gate-bg" aria-hidden="true"></div>
-  <div class="gate-card">
-    <div class="gate-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-    </div>
-    <h1 id="gate-title" class="gate-title">Private Archive</h1>
-    <p class="gate-sub">WEIFFENBACH.COM · FREUNDE &amp; PRIVAT</p>
+  <header class="pub-top"><div class="wrap pub-topbar">
+    <a class="pub-brand" href="/"><span class="pub-mark" aria-hidden="true">⚓</span><span><span class="pub-title">Häfen &amp; Schiffe</span><span class="pub-sub">weiffenbach.com</span></span></a>
+    <nav class="pub-nav">
+      <a href="/haefen/">Häfen</a><a href="/schiffe/">Schiffe</a>
+      <button type="button" id="login-open" class="pub-login">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+        Anmelden</button>
+    </nav>
+  </div></header>
+  <main class="wrap pub-main" aria-labelledby="pub-h1">
+<!--PUBLIC-DASHBOARD-->
+  </main>
+  <footer class="wrap pub-foot">
+    <p>Persönliche Erfahrungen von Kreuzfahrten, ohne Gewähr. Preise, Öffnungszeiten und Wege ändern sich – vor Ort prüfen.</p>
+    <p>Länder: Natural Earth · Schiffsfotos: Wikimedia Commons · © <span id="year"></span></p>
+  </footer>
+</div>
 
-    <form id="gate-form" class="gate-form" autocomplete="on">
-      <label for="pw" class="sr-only">Zugangscode</label>
-      <input id="pw" name="password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Zugangscode eingeben" required>
-      <button type="submit" id="gate-submit">
-        <span id="gate-submit-label">Eintreten</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
-      </button>
-      <label class="gate-remember"><input type="checkbox" id="remember"> Auf diesem Gerät angemeldet bleiben</label>
-      <p id="gate-msg" class="gate-msg" role="status" aria-live="polite"></p>
-    </form>
+<!-- Anmelden: erst Bereich wählen, dann Passwort -->
+<dialog id="login" class="login-dlg" aria-labelledby="login-title">
+  <div class="login-card" id="login-card">
+    <button type="button" class="login-x" data-close aria-label="Schließen">✕</button>
+    <div class="login-step" id="login-choose">
+      <div class="gate-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+      </div>
+      <h2 id="login-title" class="login-h">Anmelden</h2>
+      <p class="login-sub">Wie möchtest du dich anmelden?</p>
+      <div class="login-choices">
+        <button type="button" class="login-choice" data-role="friends"><span class="lc-icon" aria-hidden="true">🤝</span><span><b>Freunde</b><small>Unsere Reisen, Karte, Statistiken und Tagebuch</small></span></button>
+        <button type="button" class="login-choice" data-role="private"><span class="lc-icon" aria-hidden="true">🔐</span><span><b>Privat</b><small>Alles, auch Planung, Fotos und Buchungen</small></span></button>
+      </div>
+    </div>
+    <div class="login-step" id="login-pass" hidden>
+      <button type="button" class="login-back" id="login-back">‹ Zurück</button>
+      <h2 class="login-h" id="login-role-title">Freunde</h2>
+      <form id="gate-form" class="gate-form" autocomplete="on">
+        <input type="text" name="username" id="login-user" autocomplete="username" value="" hidden>
+        <label for="pw" class="sr-only">Passwort</label>
+        <input id="pw" name="password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Passwort eingeben" required>
+        <button type="submit" id="gate-submit">
+          <span id="gate-submit-label">Eintreten</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+        </button>
+        <label class="gate-remember"><input type="checkbox" id="remember"> Auf diesem Gerät angemeldet bleiben</label>
+        <p id="gate-msg" class="gate-msg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
   </div>
-  <a class="gate-public" href="/haefen/"><span class="gp-kicker">Öffentlich · ohne Anmeldung</span><span class="gp-title">Häfen &amp; Schiffe</span><span class="gp-sub">Landgang-Tipps auf eigene Faust →</span></a>
-  <footer class="gate-foot">RESTRICTED ACCESS · © <span id="year"></span></footer>
-</main>
+</dialog>
 
 <!-- Dashboard (wird erst nach dem Entschlüsseln gefüllt) -->
 <div id="app" hidden>
@@ -273,6 +300,7 @@
 
 <script src="assets/vendor/leaflet/leaflet.js"></script>
 <script src="assets/vendor/topojson-client.min.js"></script>
+<script src="assets/js/public-map.js"></script>
 <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>

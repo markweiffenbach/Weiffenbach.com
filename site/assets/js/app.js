@@ -32,7 +32,10 @@ function readPrefs() { try { return JSON.parse(localStorage.getItem(PREFS)) || {
 function writePrefs(p) { try { localStorage.setItem(PREFS, JSON.stringify(p)); } catch { /* egal */ } }
 
 // ======================= Zugang =======================
-let blobs = []; // privat zuerst, dann Freunde – ein Passwort öffnet den passenden Bereich
+let blobs = []; // privat zuerst, dann Freunde (für gemerkte Anmeldungen)
+const blobByRole = {};
+let loginRole = 'friends';
+const ROLE_NAME = { friends: 'Freunde', private: 'Privat' };
 
 const INSECURE_MSG = 'Der private Bereich braucht eine sichere Verbindung (https). Sie wird gerade eingerichtet – bitte später erneut versuchen.';
 
@@ -58,9 +61,12 @@ async function init() {
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Offline-Speicher nicht verfügbar:', e?.message || e));
   applyTheme(readPrefs().theme);
   $('#gate-form').addEventListener('submit', onLogin);
+  setupLoginDialog();
   if (!(await ensureSecure())) return;
-  blobs = (await Promise.all(['data/data.enc.json', 'data/friends.enc.json'].map((u) => fetch(u, { cache: 'no-cache' })
-    .then((r) => (r.ok ? r.json() : null)).catch(() => null)))).filter(Boolean);
+  const [priv, friends] = await Promise.all(['data/data.enc.json', 'data/friends.enc.json'].map((u) => fetch(u, { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null)));
+  Object.assign(blobByRole, { private: priv, friends });
+  blobs = [priv, friends].filter(Boolean);
   const key = blobs.length ? await storedKey() : null;
   if (key) {
     const data = await openAny(key);
@@ -77,26 +83,46 @@ async function openAny(key) {
   return null;
 }
 
+// Anmelden: Bereich wählen (Freunde oder Privat), dann Passwort
+function setupLoginDialog() {
+  const dlg = $('#login');
+  const choose = (show) => { $('#login-choose').hidden = !show; $('#login-pass').hidden = show; $('#gate-msg').textContent = ''; };
+  $('#login-open').addEventListener('click', () => { choose(true); dlg.showModal(); });
+  dlg.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => dlg.close()));
+  dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); }); // Klick neben das Fenster
+  dlg.querySelectorAll('.login-choice').forEach((b) => b.addEventListener('click', () => {
+    loginRole = b.dataset.role;
+    $('#login-role-title').textContent = ROLE_NAME[loginRole];
+    $('#login-user').value = `weiffenbach.com ${ROLE_NAME[loginRole]}`; // damit der Passwort-Manager beide Passwörter getrennt speichert
+    choose(false);
+    $('#pw').value = '';
+    $('#pw').focus();
+  }));
+  $('#login-back').addEventListener('click', () => choose(true));
+  // Von den öffentlichen Unterseiten: /#anmelden öffnet das Fenster direkt
+  if (location.hash === '#anmelden') { history.replaceState(null, '', location.pathname); choose(true); dlg.showModal(); }
+}
+
 async function onLogin(ev) {
   ev.preventDefault();
   const msg = $('#gate-msg'), btn = $('#gate-submit');
   msg.textContent = '';
   if (!window.crypto?.subtle) { msg.textContent = INSECURE_MSG; return; }
-  if (!blobs.length) { msg.textContent = 'Der geschützte Bereich ist gerade nicht verfügbar.'; return; }
+  const blob = blobByRole[loginRole];
+  if (!blob) { msg.textContent = `Der Bereich „${ROLE_NAME[loginRole]}“ ist gerade nicht verfügbar.`; return; }
   const label = $('#gate-submit-label');
   btn.disabled = true;
   label.textContent = '…';
   try {
-    const key = await deriveKey($('#pw').value, blobs[0].iterations);
-    const data = await openAny(key);
-    if (!data) throw Object.assign(new Error('falsch'), { name: 'OperationError' });
+    const key = await deriveKey($('#pw').value, blob.iterations);
+    const data = await decrypt(blob, key);
     await rememberKey(key, $('#remember').checked);
     start(data, key);
   } catch (err) {
     // Nur ein fehlgeschlagenes Entschlüsseln (OperationError) bedeutet ein falsches Passwort
-    msg.textContent = err?.name === 'OperationError' ? 'Der Zugangscode stimmt leider nicht.' : `Technischer Fehler: ${err?.message || err}`;
-    const gate = $('#gate');
-    gate.classList.remove('shake'); void gate.offsetWidth; gate.classList.add('shake');
+    msg.textContent = err?.name === 'OperationError' ? `Das Passwort für „${ROLE_NAME[loginRole]}“ stimmt leider nicht.` : `Technischer Fehler: ${err?.message || err}`;
+    const card = $('#login-card');
+    card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
     $('#pw').select();
   } finally {
     btn.disabled = false;
@@ -117,6 +143,7 @@ function start(data, key) {
   setPhotoKey(key);
   DATA = prepare(data);
   $('#gate').hidden = true;
+  if ($('#login').open) $('#login').close();
   $('#app').hidden = false;
   document.documentElement.dataset.role = DATA.role || 'private';
   document.title = 'Schiffsurlaube · Weiffenbach';

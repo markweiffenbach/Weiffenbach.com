@@ -92,8 +92,8 @@ ${head}
 </head>
 <body>
 <header class="top"><div class="wrap top-bar">
-  <a class="brand" href="/haefen/"><span class="brand-mark" aria-hidden="true">⚓</span><span><span class="brand-title">Häfen &amp; Schiffe</span><span class="brand-sub">Landgang-Tipps auf eigene Faust</span></span></a>
-  <nav class="top-nav"><a href="/haefen/">Häfen</a><a href="/schiffe/">Schiffe</a><a href="/" class="login">Anmelden</a></nav>
+  <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">⚓</span><span><span class="brand-title">Häfen &amp; Schiffe</span><span class="brand-sub">Landgang-Tipps auf eigene Faust</span></span></a>
+  <nav class="top-nav"><a href="/haefen/">Häfen</a><a href="/schiffe/">Schiffe</a><a href="/#anmelden" class="login">Anmelden</a></nav>
 </div></header>
 <main class="wrap">
 ${body}
@@ -136,7 +136,7 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
     if (!e.pub || e.d >= today || (e.cruise != null && !past.has(e.cruise))) continue;
     const p = ports.get(e.port);
     if (!p) continue;
-    p.entries.push({ title: e.title, text: e.text, tips: e.tips, art: e.art, links: (e.links || []).filter((u) => /^https:\/\//i.test(u)) });
+    p.entries.push({ d: e.d, title: e.title, text: e.text, tips: e.tips, art: e.art, links: (e.links || []).filter((u) => /^https:\/\//i.test(u)) }); // d nur zum Sortieren, wird nie gezeigt
     tips++;
   }
 
@@ -249,6 +249,39 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
   const imgOut = path.join(outDir, 'assets', 'img', 'schiffe');
   await mkdir(imgOut, { recursive: true });
   for (const s of shipList) if (s.photo) await copyFile(path.join(photoDir, s.photo.file), path.join(imgOut, s.photo.file)).catch(() => {});
+  // Startseite: öffentliches Dashboard in index.html einsetzen
+  const indexFile = path.join(outDir, 'index.html');
+  const index = await readFile(indexFile, 'utf8').catch(() => null);
+  if (index?.includes('<!--PUBLIC-DASHBOARD-->')) {
+    const bars = (rows) => { const max = Math.max(1, ...rows.map((r) => r.n)); return `<div class="pub-bars">${rows.map((r) => `<div class="pub-bar"><span class="pb-label">${r.label}</span>
+      <span class="pb-track"><i style="width:${Math.max(2, (r.n / max) * 100)}%"></i><b>${fmt.format(r.n)}</b></span></div>`).join('')}</div>`; };
+    const contRows = [...byK.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, list]) => ({ label: esc(k), n: list.length }));
+    const lineRows = [...byLine.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'de')).map(([l, list]) => ({ label: esc(l), n: list.length }));
+    const byCountry = new Map();
+    for (const p of portList) { const c = byCountry.get(p.country) || { a2: p.a2, n: 0 }; c.n++; byCountry.set(p.country, c); }
+    const latest = portList.flatMap((p) => p.entries.map((e) => ({ e, p }))).sort((a, b) => b.e.d.localeCompare(a.e.d)).slice(0, 6);
+    const topShips = [...shipList].sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.photo ? 1 : 0) - (a.photo ? 1 : 0) || a.name.localeCompare(b.name, 'de')).slice(0, 8);
+    const kpi = (n, label, href) => `<${href ? `a href="${href}"` : 'div'} class="pub-kpi"><b>${fmt.format(n)}</b><span>${label}</span></${href ? 'a' : 'div'}>`;
+    const dash = `
+    <section class="pub-hero"><p class="pub-kicker">Landgang auf eigene Faust</p><h1 id="pub-h1">Häfen &amp; Schiffe</h1>
+      <p class="pub-lead">Tipps für ${fmt.format(portList.length)} Kreuzfahrthäfen in ${fmt.format(countries.size)} Ländern – und ein ehrliches Fazit zu ${fmt.format(shipList.length)} Schiffen.</p></section>
+    <div class="pub-kpis">${kpi(portList.length, 'Häfen', '/haefen/')}${kpi(countries.size, 'Länder')}${kpi(byK.size, 'Kontinente')}${kpi(shipList.length, 'Schiffe', '/schiffe/')}${kpi(byLine.size, 'Reedereien', '/schiffe/')}${kpi(tips, 'Tipps', '/haefen/')}</div>
+    <div class="pub-grid">
+      <section class="pub-card pub-wide"><div class="pub-head"><h2>Weltkarte</h2><a href="/haefen/">Alle Häfen ›</a></div><div id="pub-map" role="region" aria-label="Karte der Häfen"></div></section>
+      <section class="pub-card"><h2>Häfen nach Kontinent</h2>${bars(contRows)}</section>
+      <section class="pub-card"><h2>Schiffe nach Reederei</h2>${bars(lineRows)}</section>
+      ${latest.length ? `<section class="pub-card pub-wide"><div class="pub-head"><h2>Neueste Tipps</h2><a href="/haefen/">Alle Häfen ›</a></div><div class="pub-tips">${latest.map(({ e, p }) => `<a class="pub-tip" href="/hafen/${p.slug}/">
+        <span class="pt-where">${flag(p.a2)} ${esc(p.name)}</span><span class="pt-title">${esc(e.title || e.tips.slice(0, 90))}</span></a>`).join('')}</div></section>` : ''}
+      <section class="pub-card pub-wide"><div class="pub-head"><h2>Schiffe</h2><a href="/schiffe/">Alle Schiffe ›</a></div><div class="pub-ships">${topShips.map((s) => `<a class="pub-ship" href="/schiff/${s.slug}/">
+        ${s.photo ? `<img src="/assets/img/schiffe/${s.photo.file}" alt="" loading="lazy">` : '<span class="ps-ph" aria-hidden="true">🚢</span>'}
+        <span class="ps-name">${esc(s.name)}</span><span class="ps-line">${esc(s.line)} ${stars(s.rating)}</span></a>`).join('')}</div></section>
+      <section class="pub-card pub-wide"><h2>Länder</h2><div class="pub-flags">${[...byCountry.entries()].sort((a, b) => a[0].localeCompare(b[0], 'de'))
+        .map(([c, v]) => `<span class="pub-flag">${flag(v.a2)} ${esc(c)} <small>${v.n}</small></span>`).join('')}</div></section>
+    </div>
+    <script id="ports" type="application/json">${JSON.stringify(mapData).replace(/</g, '\\u003c')}</script>`;
+    await writeFile(indexFile, index.replace('<!--PUBLIC-DASHBOARD-->', dash));
+  }
+
   const urls = ['/', ...[...files.keys()].map((r) => '/' + r.replace(/index\.html$/, ''))];
   await writeFile(path.join(outDir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
   return { ports: portList.length, ships: shipList.length, photos, tips, pages: files.size };

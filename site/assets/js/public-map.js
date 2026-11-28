@@ -1,6 +1,6 @@
 // Weltkarte der Häfen auf der Startseite (Ländergrenzen von Natural Earth, keine Kartenkacheln von Dritten)
 (() => {
-  const el = document.getElementById('map');
+  const el = document.getElementById('pub-map') || (document.getElementById('ports') && document.getElementById('map'));
   const data = JSON.parse(document.getElementById('ports')?.textContent || '[]');
   if (!el || !window.L) return;
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -14,7 +14,7 @@
   });
   const pts = [];
   for (const p of data) {
-    const m = L.circleMarker([p.la, p.lo], { radius: p.t ? 6 : 4, weight: 1.5, color: css('--surface-solid'), fillColor: css('--accent'), fillOpacity: p.t ? 1 : 0.7 }).addTo(map);
+    const m = L.circleMarker([p.la, p.lo], { radius: p.t ? 6 : 4, weight: 1.5, color: css('--surface-solid') || css('--surface'), fillColor: css('--accent'), fillOpacity: p.t ? 1 : 0.7 }).addTo(map);
     const a = document.createElement('a');
     a.href = `/hafen/${p.s}/`; a.textContent = p.n;
     const box = document.createElement('div');
