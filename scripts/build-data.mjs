@@ -25,6 +25,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { webcrypto as crypto, createHash } from 'node:crypto';
 import { collectPhotos, collectLocalPhotos, encryptBytes } from './photos.mjs';
 import { loadCache, saveCache, addWeather, addShipImages } from './enrich.mjs';
+import { buildPublic } from './public.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -172,7 +173,7 @@ async function loadSource() {
         Zeitpunkt: m.zeitpunkt || '', Status: m.status || '', Details: m.details || '', Quelle: m.quelle || '',
         Breite: m.lat != null ? String(m.lat) : '', 'Länge': m.lng != null ? String(m.lng) : '', Ersatz: m.ersatz || '' })),
       diary: (seed.diary || []).map((e, i) => ({ _row: i + 2, Datum: e.datum, Hafen: e.hafen || '', Titel: e.titel || '',
-        Tagebuch: e.text || '', Tipps: e.tipps || '', Links: e.links || '', Art: e.art || '' })),
+        Tagebuch: e.text || '', Tipps: e.tipps || '', Links: e.links || '', Art: e.art || '', 'Öffentlich': e.oeffentlich || '' })),
       times: (seed.times || []).map((t, i) => ({ _row: i + 2, Datum: t.datum, Hafen: t.hafen, Ankunft: t.ankunft || '', Abfahrt: t.abfahrt || '', Tender: t.tender || '' })),
       travel: (seed.travel || []).map((t, i) => ({ _row: i + 2, Datum: t.datum, Art: t.art, Von: t.von || '', Nach: t.nach || '', Anbieter: t.anbieter || '', Hinweis: t.hinweis || '' })),
       onboard: (seed.onboard || []).map((t, i) => ({ _row: i + 2, Datum: t.datum, Art: t.art, Name: t.name, Hinweis: t.hinweis || '' })),
@@ -186,7 +187,7 @@ async function loadSource() {
   let ships = [];
   try {
     ships = table(await fetchCSV(process.env.GID_SCHIFFE || '1500', 'Schiffe'),
-      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis', 'Werft', 'Klasse', 'Schwesterschiffe', 'Bild']);
+      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis', 'Werft', 'Klasse', 'Schwesterschiffe', 'Bild', 'Bewertung', 'Fazit']);
   } catch (e) {
     warn(`Schiffsdaten nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
   }
@@ -202,7 +203,7 @@ async function loadSource() {
   let diary = [];
   try {
     diary = table(await fetchCSV(process.env.GID_TAGEBUCH || '1700', 'Tagebuch'), ['Datum', 'Hafen', 'Titel', 'Tagebuch'], 'Tagebuch',
-      ['Tipps', 'Links', 'Art']);
+      ['Tipps', 'Links', 'Art', 'Öffentlich']);
   } catch (e) {
     warn(`Reisetagebuch nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne es gebaut.`);
   }
@@ -342,7 +343,8 @@ async function build() {
     // Ganzzahlen kommen im deutschen Sheet mit Tausenderpunkt („42.289“)
     const int = (v) => { const n = parseInt(String(v ?? '').replace(/[^\d-]/g, ''), 10); return Number.isFinite(n) ? n : null; };
     ships[r.Schiff] = { built: int(r.Indienststellung), gt: int(r.BRZ), length: parseNum(r['Länge (m)']),
-      pax: int(r.Passagiere), note: r.Hinweis || '', yard: r.Werft || '', cls: r.Klasse || '', sisters: r.Schwesterschiffe || '', imgSrc: r.Bild || '' };
+      pax: int(r.Passagiere), note: r.Hinweis || '', yard: r.Werft || '', cls: r.Klasse || '', sisters: r.Schwesterschiffe || '', imgSrc: r.Bild || '',
+      rating: Math.max(0, Math.min(5, int(r.Bewertung) || 0)), verdict: r.Fazit || '' };
   }
   for (const name of new Set(cruises.map((c) => c.ship))) {
     if (src.ships.length && !ships[name]) warn(`Schiffe: „${name}“ fehlt im Tab „Schiffe“ – bitte Zeile ergänzen.`);
@@ -410,7 +412,7 @@ async function build() {
     }
     const info = placeInfo.get(port);
     const links = (r.Links || '').split(/\s+/).filter((u) => /^https?:\/\/\S+$/i.test(u));
-    diary.push({ d, port, place: port !== r.Hafen ? r.Hafen : '', title: r.Titel || '', text: r.Tagebuch || '', tips: r.Tipps || '',
+    diary.push({ d, port, place: port !== r.Hafen ? r.Hafen : '', title: r.Titel || '', text: r.Tagebuch || '', tips: r.Tipps || '', pub: yes(r['Öffentlich']),
       links, art: r.Art || '', cruise: c ? c.id : null, phase,
       ...(info ? { country: info.country, lat: info.lat, lng: info.lng } : {}) });
   }
@@ -490,6 +492,15 @@ const key = await deriveKey(password);
 // Der Cache enthält Orte und Daten der Reisen und liegt daher ebenfalls verschlüsselt vor
 cache = await loadCache(CACHE_DIR, key);
 const data = await build();
+const TODAY = new Date().toISOString().slice(0, 10);
+// Schiffsdaten mit Bild-Vorgabe sichern, bevor addShipImages sie umschreibt
+const shipsRaw = structuredClone(data.ships);
+
+// Öffentlicher Hafen- und Schiffsführer (ohne Anmeldung, streng gefiltert)
+{
+  const pub = await buildPublic({ data, ships: shipsRaw, outDir: OUT, cacheDir: CACHE_DIR, today: TODAY, offline: !!FROM_JSON });
+  console.log(`ℹ Öffentlich: ${pub.ports} Häfen, ${pub.ships} Schiffe (${pub.photos} mit Commons-Foto), ${pub.tips} freigegebene Tipps, ${pub.pages} Seiten.`);
+}
 // Kennung des Schlüssels für Foto-Dateinamen und Cache (verrät nichts über das Passwort)
 const keyId = createHash('sha256').update(Buffer.from(await crypto.subtle.exportKey('raw', key))).digest('hex').slice(0, 16);
 
@@ -507,7 +518,33 @@ data.photos = PHOTOS_DIR
   : await collectPhotos({ ...photoArgs, cacheDir: CACHE_DIR });
 
 await mkdir(path.join(OUT, 'data'), { recursive: true });
-await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt(data, key)));
+await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt({ ...data, role: 'private' }, key)));
+
+// Bereich „Freunde“ mit eigenem Passwort (FRIENDS_PASSWORD, ohne eigenes Secret dasselbe wie SITE_PASSWORD):
+// nur vergangene Reisen, keine Fotos, keine Kabinen, Mitreisenden, Bemerkungen, Fotoalben, Anreise oder Buchungen an Bord
+{
+  const friendsPw = (process.env.FRIENDS_PASSWORD || '').trim() ? process.env.FRIENDS_PASSWORD : password;
+  const fkey = await deriveKey(friendsPw);
+  const fKeyId = createHash('sha256').update(Buffer.from(await crypto.subtle.exportKey('raw', fkey))).digest('hex').slice(0, 16);
+  const pastCruises = data.cruises.filter((c) => c.end < TODAY);
+  const newId = new Map(pastCruises.map((c, i) => [c.id, i]));
+  const keep = (x) => x.d < TODAY && (x.cruise == null || newId.has(x.cruise));
+  const remap = (x) => ({ ...x, cruise: x.cruise == null ? null : newId.get(x.cruise) });
+  const fShips = {};
+  for (const c of pastCruises) if (shipsRaw[c.ship]) fShips[c.ship] = structuredClone(shipsRaw[c.ship]);
+  const friends = {
+    role: 'friends', generated: data.generated, countries: data.countries, warnings: 0,
+    cruises: pastCruises.map((c, i) => { const { companions, cabin, album, note, ...rest } = c; return { ...rest, id: i }; }),
+    stops: data.stops.filter(keep).map(remap),
+    missed: data.missed.filter(keep).map(remap),
+    diary: data.diary.filter(keep).map(remap).map(({ pub, ...e }) => e),
+    travel: [], onboard: [], photos: [], ships: fShips,
+  };
+  // Schiffsbilder zusätzlich mit dem Freunde-Schlüssel ablegen (aus dem Cache, nichts wird neu geladen)
+  await addShipImages(friends.ships, cache, { key: fkey, keyId: fKeyId, outDir: OUT, encryptBytes, offline: true });
+  await writeFile(path.join(OUT, 'data', 'friends.enc.json'), JSON.stringify(await encrypt(friends, fkey)));
+  console.log(`ℹ Freunde: ${friends.cruises.length} Reisen, ${friends.diary.length} Tagebucheinträge, keine Fotos${friendsPw === password ? ' – noch dasselbe Passwort wie privat (Secret FRIENDS_PASSWORD fehlt)' : ''}.`);
+}
 if (PLAIN) await writeFile(path.join(OUT, 'data', 'data.json'), JSON.stringify(data, null, 1));
 
 console.log(`✓ ${data.cruises.length} Reisen, ${data.stops.length} Stopps, ${data.missed.length} ausgefallene Häfen, ${data.diary.length} Tagebucheinträge, ${data.photos.length} Fotos verschlüsselt geschrieben (${warnings.length} Hinweise).`);

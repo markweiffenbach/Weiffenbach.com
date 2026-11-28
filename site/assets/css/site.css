@@ -646,3 +646,14 @@ body { background: var(--page); }
 .today-ship .link-btn { font-weight: 500; }
 .today-list { margin-top: 4px; }
 .today .tp-diary { margin-top: 4px; }
+
+/* Startseite: Weg zum öffentlichen Hafenführer */
+.gate-public { position: relative; z-index: 1; margin-top: 16px; width: 100%; max-width: 448px; display: flex; flex-direction: column; gap: 2px; text-align: left;
+  padding: 16px 20px; border-radius: 16px; text-decoration: none; color: #fff; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: background .2s; }
+.gate-public:hover { background: rgba(255, 255, 255, .1); }
+.gp-kicker { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
+.gp-title { font-size: 16px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.gp-sub { font-size: 13px; color: rgba(255, 255, 255, .7); }
+/* Freunde-Ansicht: Hinweis im Kopf */
+:root[data-role="friends"] .brand-sub::after { content: " · Freunde"; }

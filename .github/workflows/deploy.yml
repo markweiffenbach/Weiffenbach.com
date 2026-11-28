@@ -52,6 +52,7 @@ jobs:
         env:
           SHEET_PUBLISH_URL: ${{ secrets.SHEET_PUBLISH_URL }}
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          FRIENDS_PASSWORD: ${{ secrets.FRIENDS_PASSWORD }}
           GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
           PHOTO_FOLDER_ID: ${{ secrets.PHOTO_FOLDER_ID }}
         run: node scripts/build-data.mjs --out _site
