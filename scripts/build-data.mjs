@@ -187,7 +187,7 @@ async function loadSource() {
   let ships = [];
   try {
     ships = table(await fetchCSV(process.env.GID_SCHIFFE || '1500', 'Schiffe'),
-      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis', 'Werft', 'Klasse', 'Schwesterschiffe', 'Bild', 'Bewertung', 'Fazit']);
+      ['Schiff', 'Indienststellung', 'BRZ', 'Länge (m)', 'Passagiere'], 'Schiffe', ['Hinweis', 'Werft', 'Klasse', 'Schwesterschiffe', 'Bild', 'Bewertung', 'Fazit', 'Bild öffentlich']);
   } catch (e) {
     warn(`Schiffsdaten nicht verfügbar (${e.message.split('.')[0]}) – Seite wird ohne sie gebaut.`);
   }
@@ -343,7 +343,7 @@ async function build() {
     // Ganzzahlen kommen im deutschen Sheet mit Tausenderpunkt („42.289“)
     const int = (v) => { const n = parseInt(String(v ?? '').replace(/[^\d-]/g, ''), 10); return Number.isFinite(n) ? n : null; };
     ships[r.Schiff] = { built: int(r.Indienststellung), gt: int(r.BRZ), length: parseNum(r['Länge (m)']),
-      pax: int(r.Passagiere), note: r.Hinweis || '', yard: r.Werft || '', cls: r.Klasse || '', sisters: r.Schwesterschiffe || '', imgSrc: r.Bild || '',
+      pax: int(r.Passagiere), note: r.Hinweis || '', yard: r.Werft || '', cls: r.Klasse || '', sisters: r.Schwesterschiffe || '', imgSrc: r.Bild || '', pubImg: r['Bild öffentlich'] || '',
       rating: Math.max(0, Math.min(5, int(r.Bewertung) || 0)), verdict: r.Fazit || '' };
   }
   for (const name of new Set(cruises.map((c) => c.ship))) {
@@ -499,7 +499,7 @@ const shipsRaw = structuredClone(data.ships);
 // Öffentlicher Hafen- und Schiffsführer (ohne Anmeldung, streng gefiltert)
 {
   const pub = await buildPublic({ data, ships: shipsRaw, outDir: OUT, cacheDir: CACHE_DIR, today: TODAY, offline: !!FROM_JSON });
-  console.log(`ℹ Öffentlich: ${pub.ports} Häfen, ${pub.ships} Schiffe (${pub.photos} mit Commons-Foto), ${pub.tips} freigegebene Tipps, ${pub.pages} Seiten.`);
+  console.log(`ℹ Öffentlich: ${pub.ports} Häfen, ${pub.ships} Schiffe (${pub.photos} mit gemeinfreiem Foto), ${pub.tips} freigegebene Tipps, ${pub.pages} Seiten.`);
 }
 // Kennung des Schlüssels für Foto-Dateinamen und Cache (verrät nichts über das Passwort)
 const keyId = createHash('sha256').update(Buffer.from(await crypto.subtle.exportKey('raw', key))).digest('hex').slice(0, 16);

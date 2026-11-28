@@ -6,7 +6,9 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 - **Drei Bereiche:**
   - **Öffentlich** (ohne Anmeldung, `/haefen/`, `/hafen/…`, `/schiffe/`, `/schiff/…`): Hafen- und Schiffsführer aus `scripts/public.mjs`.
     Nur Häfen und Schiffe vergangener Reisen, ohne Jahre, Besuchszahlen oder Namen; Tagebuch nur mit „ja“ in der Spalte
-    „Öffentlich“; Bilder nur gemeinfrei (Public Domain/CC0) aus Wikimedia Commons; Bewertung und Fazit aus dem Tab „Schiffe“.
+    „Öffentlich“; Bilder nur gemeinfrei (Public Domain/CC0) aus Wikimedia Commons oder Openverse; Bewertung und Fazit aus dem Tab „Schiffe“.
+    Spalte „Bild öffentlich“ im Tab „Schiffe“: `File:<Commons-Datei>` oder ein https-Link auf ein selbst geprüftes gemeinfreies Bild
+    legt das öffentliche Foto fest, `kein` blendet es aus (die Spalte „Bild“ gilt nur für den privaten Bereich).
     Impressum und Datenschutzerklärung unter `/impressum/` und `/datenschutz/`; Name und Anschrift kommen aus den Secrets
     `IMPRESSUM_NAME` und `IMPRESSUM_ANSCHRIFT` (Zeilen mit `|` trennen), optional `IMPRESSUM_EMAIL`.
   - **Freunde** (Passwort aus dem Secret `FRIENDS_PASSWORD`; fehlt es, gilt `SITE_PASSWORD`): Dashboard nur mit vergangenen
