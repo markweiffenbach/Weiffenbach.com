@@ -52,19 +52,22 @@ async function shipPhoto(ship, cache, dir, offline) {
   const key = `${ship.name}|${ship.src}`;
   const file = path.join(dir, `${ship.slug}.jpg`);
   if (cache[key]?.file) { try { await access(file); return cache[key]; } catch { /* neu laden */ } }
+  // Erfolglose Suchen eine Woche lang nicht wiederholen – sonst dauert jeder Build viele Minuten
+  if (cache[key]?.fail && Date.now() - cache[key].fail < 7 * 86400000) return null;
   if (offline) return null;
+  const failed = () => { cache[key] = { fail: Date.now() }; return null; };
   const name = await commonsFileName(ship.name, /^https?:/i.test(ship.src) ? '' : ship.src);
-  if (!name) return null;
+  if (!name) return failed();
   const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1280&titles=${encodeURIComponent('File:' + name)}`);
   const info = Object.values(q?.query?.pages || {})[0]?.imageinfo?.[0];
-  if (!info) return null; // nur freie Bilder aus Commons
+  if (!info) return failed(); // nur freie Bilder aus Commons
   try {
     let res = null;
     for (let attempt = 0; attempt < 3 && !res?.ok; attempt++) {
       await new Promise((r) => setTimeout(r, 250 + attempt * 1500));
       res = await fetch(info.thumburl || info.url, { headers: UA, signal: AbortSignal.timeout(30000) }).catch(() => null);
     }
-    if (!res?.ok) return null;
+    if (!res?.ok) return failed();
     await mkdir(dir, { recursive: true });
     await writeFile(file, Buffer.from(await res.arrayBuffer()));
   } catch { return null; }
