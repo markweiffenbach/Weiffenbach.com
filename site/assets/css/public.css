@@ -42,7 +42,7 @@ html, body { margin: 0; }
 body { background: var(--page); color: var(--ink); font: 16px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: var(--veil), url("../img/bg.jpg") center / cover no-repeat, radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
+  background: var(--veil), radial-gradient(90% 60% at 20% 0%, rgba(127, 178, 236, .35) 0%, transparent 60%), radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
 }
 h1, h2, h3, p { margin: 0; }
 a { color: inherit; }

@@ -77,10 +77,10 @@ h1, h2, h3, p { margin: 0; }
 /* ---------- Startseite (öffentlich) ---------- */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .pub { position: relative; min-height: 100vh; min-height: 100svh; color: var(--ink); }
-/* Hintergrundfoto (Strandfoto, beim Build mit auf die Seite gelegt) mit Schleier; ohne Foto bleibt ein Verlauf */
+/* Hintergrund öffentlich ohne fremde Fotos: Meer-Verlauf mit Schleier (nach dem Login eigene Reisefotos) */
 .gate-bg {
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: var(--veil), url("../img/bg.jpg") center / cover no-repeat, radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
+  background: var(--veil), radial-gradient(90% 60% at 20% 0%, rgba(127, 178, 236, .35) 0%, transparent 60%), radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
 }
 .pub-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding-top: 18px; padding-bottom: 18px; }
 .pub-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
@@ -138,6 +138,7 @@ a.pub-kpi:hover { background: var(--ctl-hover); }
 .pub-flag small { color: var(--muted); }
 .pub-foot { padding-top: 28px; padding-bottom: 40px; font-size: 13px; color: var(--muted); }
 .pub-foot p + p { margin-top: 6px; }
+.pub-foot a { color: var(--ink-2); }
 
 /* Anmeldefenster */
 .login-dlg { border: 0; padding: 0; background: transparent; color: #fff; max-width: min(448px, calc(100% - 32px)); width: 100%; }
@@ -646,7 +647,7 @@ body { background: var(--page); }
 #app::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: var(--veil),
-    var(--bg-photo, url("../img/bg.jpg")) center / cover no-repeat,
+    var(--bg-photo, linear-gradient(transparent, transparent)) center / cover no-repeat,
     radial-gradient(120% 80% at 50% 0%, #1c4570 0%, #0e2742 45%, #07131f 100%);
 }
 :is(.card, .kpi, .next, .arch-port, .ship-card) {

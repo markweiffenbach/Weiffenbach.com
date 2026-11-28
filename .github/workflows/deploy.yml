@@ -38,10 +38,6 @@ jobs:
           V=${GITHUB_SHA::8}
           sed -i -E "s#(assets/(css|js)/[a-z]+\.(css|js))\"#\1?v=$V\"#g" _site/index.html
           sed -i -E "s#from '\./([a-z]+)\.js'#from './\1.js?v=$V'#g" _site/assets/js/*.js
-          # Hintergrundfoto (Unsplash-Lizenz) selbst ausliefern statt bei jedem Aufruf von Unsplash zu laden
-          mkdir -p _site/assets/img
-          curl -fsSL --retry 3 -o _site/assets/img/bg.jpg 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2000&q=80&fm=jpg' \
-            || echo "::warning::Hintergrundfoto nicht geladen – die Seite zeigt dann den dunklen Verlauf."
       - name: Foto-Cache laden
         uses: actions/cache@v5
         with:
@@ -53,6 +49,9 @@ jobs:
           SHEET_PUBLISH_URL: ${{ secrets.SHEET_PUBLISH_URL }}
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
           FRIENDS_PASSWORD: ${{ secrets.FRIENDS_PASSWORD }}
+          IMPRESSUM_NAME: ${{ secrets.IMPRESSUM_NAME }}
+          IMPRESSUM_ANSCHRIFT: ${{ secrets.IMPRESSUM_ANSCHRIFT }}
+          IMPRESSUM_EMAIL: ${{ secrets.IMPRESSUM_EMAIL }}
           GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
           PHOTO_FOLDER_ID: ${{ secrets.PHOTO_FOLDER_ID }}
         run: node scripts/build-data.mjs --out _site

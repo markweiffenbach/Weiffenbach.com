@@ -3,7 +3,7 @@
 // Bewusst streng – keine Rückschlüsse auf uns:
 //   • nur Häfen und Schiffe vergangener Reisen, ohne Jahre, Anzahl Besuche oder Reisen, ohne Namen
 //   • Tagebuch nur mit „ja“ in der Spalte „Öffentlich“ und nur aus der Vergangenheit (Titel, Text, Tipps, Links, Art)
-//   • Schiffsfotos nur aus Wikimedia Commons mit Urheber und Lizenz, nie Reederei-Werbebilder
+//   • Bilder nur gemeinfrei (Public Domain / CC0) aus Wikimedia Commons – nichts mit Urheberrecht oder Personenbezug
 import { readFile, writeFile, mkdir, access, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,11 +47,12 @@ async function commonsFileName(name, src) {
   for (const [lang, t] of tries) { const f = await articleImage(lang, t); if (f) return f; }
   return null;
 }
+const PUBLIC_DOMAIN = /(^|[^a-z])(pd|cc0)([^a-z]|$)|public domain|gemeinfrei/i;
 const strip = (html) => String(html || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 async function shipPhoto(ship, cache, dir, offline) {
   const key = `${ship.name}|${ship.src}`;
   const file = path.join(dir, `${ship.slug}.jpg`);
-  if (cache[key]?.file) { try { await access(file); return cache[key]; } catch { /* neu laden */ } }
+  if (cache[key]?.file && cache[key].pd) { try { await access(file); return cache[key]; } catch { /* neu laden */ } }
   // Erfolglose Suchen eine Woche lang nicht wiederholen – sonst dauert jeder Build viele Minuten
   if (cache[key]?.fail && Date.now() - cache[key].fail < 7 * 86400000) return null;
   if (offline) return null;
@@ -60,7 +61,10 @@ async function shipPhoto(ship, cache, dir, offline) {
   if (!name) return failed();
   const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1280&titles=${encodeURIComponent('File:' + name)}`);
   const info = Object.values(q?.query?.pages || {})[0]?.imageinfo?.[0];
-  if (!info) return failed(); // nur freie Bilder aus Commons
+  if (!info) return failed();
+  // Nur gemeinfreie Bilder (Public Domain, CC0) – alles mit Urheberrecht oder Namensnennungspflicht bleibt weg
+  const m = info.extmetadata || {};
+  if (!PUBLIC_DOMAIN.test(`${m.License?.value || ''} ${m.LicenseShortName?.value || ''}`)) return failed();
   try {
     let res = null;
     for (let attempt = 0; attempt < 3 && !res?.ok; attempt++) {
@@ -71,8 +75,7 @@ async function shipPhoto(ship, cache, dir, offline) {
     await mkdir(dir, { recursive: true });
     await writeFile(file, Buffer.from(await res.arrayBuffer()));
   } catch { return null; }
-  const m = info.extmetadata || {};
-  cache[key] = { file: `${ship.slug}.jpg`, author: strip(m.Artist?.value) || 'unbekannt', license: strip(m.LicenseShortName?.value) || 'siehe Quelle', page: info.descriptionurl };
+  cache[key] = { pd: true, file: `${ship.slug}.jpg`, license: strip(m.LicenseShortName?.value) || 'gemeinfrei', page: info.descriptionurl };
   return cache[key];
 }
 
@@ -103,7 +106,8 @@ ${body}
 </main>
 <footer class="foot wrap">
   <p>Persönliche Erfahrungen von Kreuzfahrten, ohne Gewähr. Preise, Öffnungszeiten und Wege ändern sich – vor Ort prüfen.</p>
-  <p>Länder: Natural Earth · Schiffsfotos: Wikimedia Commons (Urheber und Lizenz am Bild)</p>
+  <p>Länder: Natural Earth (gemeinfrei) · Schiffsfotos: Wikimedia Commons, nur gemeinfreie Bilder</p>
+  <p><a href="/impressum/">Impressum</a> · <a href="/datenschutz/">Datenschutz</a></p>
 </footer>
 </body>
 </html>
@@ -204,7 +208,7 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
       body: `<nav class="crumbs"><a href="/schiffe/">Schiffe</a> › ${esc(s.name)}</nav>
       <section class="hero"><p class="kicker">${esc(s.line)}</p><h1>${esc(s.name)}</h1></section>
       ${s.photo ? `<figure class="ship-photo card"><img src="/assets/img/schiffe/${s.photo.file}" alt="${esc(s.name)}" loading="lazy">
-        <figcaption>Foto: ${esc(s.photo.author)} · <a href="${esc(s.photo.page)}" rel="noopener" target="_blank">${esc(s.photo.license)}, Wikimedia Commons ↗</a></figcaption></figure>` : ''}
+        <figcaption>Gemeinfreies Foto (${esc(s.photo.license)}) · <a href="${esc(s.photo.page)}" rel="noopener" target="_blank">Wikimedia Commons ↗</a></figcaption></figure>` : ''}
       <div class="grid-2">
         <section class="card"><h2>Fazit</h2>${s.rating || s.verdict ? `<p class="verdict">${stars(s.rating)}</p>${s.verdict ? `<p>${esc(s.verdict)}</p>` : ''}` : '<p class="muted">Folgt.</p>'}</section>
         <section class="card"><h2>Steckbrief</h2><dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
@@ -252,6 +256,45 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
   const imgOut = path.join(outDir, 'assets', 'img', 'schiffe');
   await mkdir(imgOut, { recursive: true });
   for (const s of shipList) if (s.photo) await copyFile(path.join(photoDir, s.photo.file), path.join(imgOut, s.photo.file)).catch(() => {});
+
+  // ---------- Impressum und Datenschutz ----------
+  // Name und Anschrift kommen aus GitHub-Secrets (IMPRESSUM_NAME, IMPRESSUM_ANSCHRIFT mit „|“ als Zeilentrenner, optional IMPRESSUM_EMAIL),
+  // damit sie nicht im öffentlichen Code stehen. Fehlen sie, steht ein Hinweis auf der Seite und im Build-Log.
+  const imp = { name: (process.env.IMPRESSUM_NAME || '').trim(), addr: (process.env.IMPRESSUM_ANSCHRIFT || '').split('|').map((l) => l.trim()).filter(Boolean),
+    email: (process.env.IMPRESSUM_EMAIL || '').trim() };
+  const impComplete = !!(imp.name && imp.addr.length);
+  const contact = impComplete
+    ? `<p>${esc(imp.name)}<br>${imp.addr.map(esc).join('<br>')}</p>${imp.email ? `<p>E-Mail: <a href="mailto:${esc(imp.email)}">${esc(imp.email)}</a></p>` : ''}`
+    : '<p class="muted">Die Angaben zum Anbieter werden gerade ergänzt.</p>';
+  const stand = new Date(today + 'T12:00:00Z').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  files.set('impressum/index.html', page({ title: 'Impressum | Häfen & Schiffe', canonical: '/impressum/', desc: 'Anbieterkennzeichnung.', head: '<meta name="robots" content="noindex">',
+    body: `<section class="hero"><p class="kicker">Rechtliches</p><h1>Impressum</h1></section>
+    <section class="card prose"><h2>Verantwortlich für diese Website</h2>${contact}
+      <p>Angaben gemäß § 18 Abs. 1 Medienstaatsvertrag. Diese Website ist ein privates, nicht kommerzielles Angebot ohne Werbung.</p></section>
+    <section class="card prose"><h2>Haftung für Inhalte und Links</h2>
+      <p>Die Tipps beruhen auf eigenen Erfahrungen und wurden sorgfältig erstellt; für Richtigkeit, Vollständigkeit und Aktualität wird keine Gewähr übernommen. Preise, Öffnungszeiten und Wege können sich geändert haben.</p>
+      <p>Für Inhalte verlinkter fremder Websites sind ausschließlich deren Betreiber verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar; bei Bekanntwerden werden entsprechende Links entfernt.</p></section>
+    <section class="card prose"><h2>Bildnachweise</h2>
+      <p>Schiffsfotos stammen aus Wikimedia Commons und werden nur gezeigt, wenn sie gemeinfrei sind (Public Domain oder CC0); die Quelle steht unter jedem Bild. Ländergrenzen: Natural Earth (gemeinfrei).</p></section>` }));
+  files.set('datenschutz/index.html', page({ title: 'Datenschutzerklärung | Häfen & Schiffe', canonical: '/datenschutz/', desc: 'Informationen zum Datenschutz.', head: '<meta name="robots" content="noindex">',
+    body: `<section class="hero"><p class="kicker">Rechtliches</p><h1>Datenschutzerklärung</h1><p class="lead">Stand: ${esc(stand)}</p></section>
+    <section class="card prose"><h2>Verantwortlicher</h2>${contact}</section>
+    <section class="card prose"><h2>Kurz gesagt</h2>
+      <p>Diese Website setzt keine Cookies, nutzt keine Analyse- oder Tracking-Dienste, keine Werbung und keine eingebundenen Inhalte Dritter (keine externen Schriften, Karten-Kacheln, Videos oder Social-Media-Knöpfe). Alle Dateien werden von dieser Domain geladen.</p></section>
+    <section class="card prose"><h2>Hosting und Server-Protokolle</h2>
+      <p>Die Website wird über GitHub Pages bereitgestellt (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). Beim Aufruf verarbeitet GitHub technisch notwendige Daten wie IP-Adresse, Datum und Uhrzeit, aufgerufene Adresse und Browserkennung, um die Seiten auszuliefern und vor Missbrauch zu schützen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem sicheren, funktionierenden Angebot). Eine Übermittlung in die USA ist dabei möglich; GitHub stützt sich nach eigenen Angaben auf das EU-US Data Privacy Framework und Standardvertragsklauseln. Näheres: <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener" target="_blank">Datenschutzerklärung von GitHub ↗</a>.</p></section>
+    <section class="card prose"><h2>Geschützter Bereich</h2>
+      <p>Der Bereich nach der Anmeldung ist nur für Familie und Freunde gedacht. Seine Inhalte liegen verschlüsselt auf dem Server und werden erst im Browser mit dem Passwort entschlüsselt; das Passwort wird dabei nicht übertragen. Wer „angemeldet bleiben“ wählt, speichert einen daraus abgeleiteten Schlüssel nur im eigenen Browser. Zusätzlich speichert der Browser Anzeige-Einstellungen und – für die Nutzung ohne Internet – eine Kopie der Seiten. Diese Speicherung ist für die gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG) und lässt sich jederzeit über die Browsereinstellungen löschen.</p></section>
+    <section class="card prose"><h2>Externe Links</h2>
+      <p>Links zu anderen Websites (z. B. Wikivoyage, Wikipedia, OpenStreetMap) werden erst beim Anklicken aufgerufen; dann gelten die Datenschutzbestimmungen des jeweiligen Anbieters.</p></section>
+    <section class="card prose"><h2>Ihre Rechte</h2>
+      <p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung sowie auf Widerspruch (Art. 15–18, 21 DSGVO). Wenden Sie sich dazu an den oben genannten Verantwortlichen. Außerdem können Sie sich bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO).</p></section>` }));
+  if (!impComplete) console.log('⚠ Impressum unvollständig: Secrets IMPRESSUM_NAME und IMPRESSUM_ANSCHRIFT fehlen.');
+  for (const rel of ['impressum/index.html', 'datenschutz/index.html']) {
+    await mkdir(path.join(outDir, path.dirname(rel)), { recursive: true });
+    await writeFile(path.join(outDir, rel), files.get(rel));
+  }
+
   // Startseite: öffentliches Dashboard in index.html einsetzen
   const indexFile = path.join(outDir, 'index.html');
   const index = await readFile(indexFile, 'utf8').catch(() => null);
@@ -285,7 +328,7 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
     await writeFile(indexFile, index.replace('<!--PUBLIC-DASHBOARD-->', dash));
   }
 
-  const urls = ['/', ...[...files.keys()].map((r) => '/' + r.replace(/index\.html$/, ''))];
+  const urls = ['/', ...[...files.keys()].filter((r) => !/^(impressum|datenschutz)\//.test(r)).map((r) => '/' + r.replace(/index\.html$/, ''))];
   await writeFile(path.join(outDir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
   return { ports: portList.length, ships: shipList.length, photos, tips, pages: files.size };
 }

@@ -521,7 +521,7 @@ await mkdir(path.join(OUT, 'data'), { recursive: true });
 await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await encrypt({ ...data, role: 'private' }, key)));
 
 // Bereich „Freunde“ mit eigenem Passwort (FRIENDS_PASSWORD, ohne eigenes Secret dasselbe wie SITE_PASSWORD):
-// nur vergangene Reisen, keine Fotos, keine Kabinen, Mitreisenden, Bemerkungen, Fotoalben, Anreise oder Buchungen an Bord
+// nur vergangene Reisen, kein Tagebuch, keine Fotos, Kabinen, Mitreisenden, Bemerkungen, Fotoalben, Anreise oder Buchungen an Bord
 {
   const friendsPw = (process.env.FRIENDS_PASSWORD || '').trim() ? process.env.FRIENDS_PASSWORD : password;
   const fkey = await deriveKey(friendsPw);
@@ -537,13 +537,13 @@ await writeFile(path.join(OUT, 'data', 'data.enc.json'), JSON.stringify(await en
     cruises: pastCruises.map((c, i) => { const { companions, cabin, album, note, ...rest } = c; return { ...rest, id: i }; }),
     stops: data.stops.filter(keep).map(remap),
     missed: data.missed.filter(keep).map(remap),
-    diary: data.diary.filter(keep).map(remap).map(({ pub, ...e }) => e),
+    diary: [], // das Tagebuch ist nur privat
     travel: [], onboard: [], photos: [], ships: fShips,
   };
   // Schiffsbilder zusätzlich mit dem Freunde-Schlüssel ablegen (aus dem Cache, nichts wird neu geladen)
   await addShipImages(friends.ships, cache, { key: fkey, keyId: fKeyId, outDir: OUT, encryptBytes, offline: true });
   await writeFile(path.join(OUT, 'data', 'friends.enc.json'), JSON.stringify(await encrypt(friends, fkey)));
-  console.log(`ℹ Freunde: ${friends.cruises.length} Reisen, ${friends.diary.length} Tagebucheinträge, keine Fotos${friendsPw === password ? ' – noch dasselbe Passwort wie privat (Secret FRIENDS_PASSWORD fehlt)' : ''}.`);
+  console.log(`ℹ Freunde: ${friends.cruises.length} Reisen, ${friends.diary.length} Tagebucheinträge, kein Tagebuch, keine Fotos${friendsPw === password ? ' – noch dasselbe Passwort wie privat (Secret FRIENDS_PASSWORD fehlt)' : ''}.`);
 }
 if (PLAIN) await writeFile(path.join(OUT, 'data', 'data.json'), JSON.stringify(data, null, 1));
 
