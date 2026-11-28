@@ -6,9 +6,11 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 - **Drei Bereiche:**
   - **Öffentlich** (ohne Anmeldung, `/haefen/`, `/hafen/…`, `/schiffe/`, `/schiff/…`): Hafen- und Schiffsführer aus `scripts/public.mjs`.
     Nur Häfen und Schiffe vergangener Reisen, ohne Jahre, Besuchszahlen oder Namen; Tagebuch nur mit „ja“ in der Spalte
-    „Öffentlich“; Schiffsfotos nur aus Wikimedia Commons mit Urheber und Lizenz; Bewertung und Fazit aus dem Tab „Schiffe“.
+    „Öffentlich“; Bilder nur gemeinfrei (Public Domain/CC0) aus Wikimedia Commons; Bewertung und Fazit aus dem Tab „Schiffe“.
+    Impressum und Datenschutzerklärung unter `/impressum/` und `/datenschutz/`; Name und Anschrift kommen aus den Secrets
+    `IMPRESSUM_NAME` und `IMPRESSUM_ANSCHRIFT` (Zeilen mit `|` trennen), optional `IMPRESSUM_EMAIL`.
   - **Freunde** (Passwort aus dem Secret `FRIENDS_PASSWORD`; fehlt es, gilt `SITE_PASSWORD`): Dashboard nur mit vergangenen
-    Reisen, ohne Fotos, Kabinen, Mitreisende, Bemerkungen, Fotoalben, Anreise und Buchungen an Bord (`data/friends.enc.json`).
+    Reisen, ohne Tagebuch, Fotos, Kabinen, Mitreisende, Bemerkungen, Fotoalben, Anreise und Buchungen an Bord (`data/friends.enc.json`).
   - **Privat** (Secret `SITE_PASSWORD`): alles wie bisher (`data/data.enc.json`).
   Die Startseite ist das öffentliche Dashboard (Kennzahlen, Weltkarte, Häfen nach Kontinent, Schiffe nach Reederei, Länder,
   neueste Tipps). „Anmelden“ oben rechts fragt erst nach dem Bereich (Freunde oder Privat), dann nach dessen Passwort.
@@ -20,8 +22,8 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 - **Unterwegs** zeigt die Kachel „Heute & Morgen“ den Tagesplan: Hafen mit Liegezeit, Anreise und Hotels, Buchungen an
   Bord und die Tagebuch-Einträge, auch im Vor- und Nachprogramm. Nach dem ersten Besuch funktioniert die Seite **offline**
   (Service Worker `site/sw.js`); gespeichert werden nur die öffentlichen bzw. verschlüsselten Dateien, Fotos erst beim Ansehen.
-- **Hintergrund:** Die Startseite zeigt ein Strandfoto (Unsplash), das der Build nach `assets/img/bg.jpg` lädt und selbst
-  ausliefert. Nach dem Login liegt dahinter jeden Tag ein anderes eigenes Reisefoto im Querformat (verschlüsselt wie alle Fotos).
+- **Hintergrund:** Öffentlich ein Meer-Verlauf ohne fremde Fotos. Nach dem Login liegt dahinter jeden Tag ein anderes eigenes
+  Reisefoto im Querformat (verschlüsselt wie alle Fotos).
 - Die Reisedaten liegen **nur verschlüsselt** auf dem Server (AES-256-GCM, Schlüssel per PBKDF2 aus dem Passwort abgeleitet).
   Ohne Passwort lassen sie sich nicht lesen, auch nicht im Quelltext.
 
