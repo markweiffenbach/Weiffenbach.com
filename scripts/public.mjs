@@ -49,22 +49,42 @@ async function commonsFileName(name, src) {
 }
 const PUBLIC_DOMAIN = /(^|[^a-z])(pd|cc0)([^a-z]|$)|public domain|gemeinfrei/i;
 const strip = (html) => String(html || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+const isPD = (info) => { const m = info?.extmetadata || {}; return PUBLIC_DOMAIN.test(`${m.License?.value || ''} ${m.LicenseShortName?.value || ''}`); };
+const squash = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+const IMG = 'prop=imageinfo&iiprop=url|extmetadata|size|mime&iiurlwidth=1280';
+// Eine bestimmte Commons-Datei samt Lizenz
+async function fileInfo(name) {
+  const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&${IMG}&titles=${encodeURIComponent('File:' + name)}`);
+  return Object.values(q?.query?.pages || {})[0]?.imageinfo?.[0] || null;
+}
+// Alle Commons-Dateien zum Schiff durchsuchen: gemeinfrei, Foto im Querformat, Schiffsname im Dateinamen
+async function searchPD(shipName) {
+  const want = squash(shipName);
+  const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=50&gsrsearch=${encodeURIComponent(`"${shipName}" filetype:bitmap`)}&${IMG}`);
+  const hits = Object.values(q?.query?.pages || {}).sort((x, y) => (x.index ?? 0) - (y.index ?? 0));
+  for (const p of hits) {
+    const info = p.imageinfo?.[0];
+    if (!info || !isPD(info) || !/jpe?g|png/.test(info.mime || '')) continue;
+    if (!squash(p.title).includes(want)) continue;
+    if (!(info.width >= 800 && info.width > info.height * 1.2)) continue;
+    return info;
+  }
+  return null;
+}
 async function shipPhoto(ship, cache, dir, offline) {
-  const key = `${ship.name}|${ship.src}`;
+  const key = `v2|${ship.name}|${ship.src}`;
   const file = path.join(dir, `${ship.slug}.jpg`);
   if (cache[key]?.file && cache[key].pd) { try { await access(file); return cache[key]; } catch { /* neu laden */ } }
   // Erfolglose Suchen eine Woche lang nicht wiederholen – sonst dauert jeder Build viele Minuten
   if (cache[key]?.fail && Date.now() - cache[key].fail < 7 * 86400000) return null;
   if (offline) return null;
   const failed = () => { cache[key] = { fail: Date.now() }; return null; };
+  // 1. fest gewähltes Commons-Foto oder Titelbild des Wikipedia-Artikels, wenn gemeinfrei; 2. sonst Commons durchsuchen
   const name = await commonsFileName(ship.name, /^https?:/i.test(ship.src) ? '' : ship.src);
-  if (!name) return failed();
-  const q = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1280&titles=${encodeURIComponent('File:' + name)}`);
-  const info = Object.values(q?.query?.pages || {})[0]?.imageinfo?.[0];
+  let info = name ? await fileInfo(name) : null;
+  if (!isPD(info)) info = await searchPD(ship.name);
   if (!info) return failed();
-  // Nur gemeinfreie Bilder (Public Domain, CC0) – alles mit Urheberrecht oder Namensnennungspflicht bleibt weg
   const m = info.extmetadata || {};
-  if (!PUBLIC_DOMAIN.test(`${m.License?.value || ''} ${m.LicenseShortName?.value || ''}`)) return failed();
   try {
     let res = null;
     for (let attempt = 0; attempt < 3 && !res?.ok; attempt++) {
