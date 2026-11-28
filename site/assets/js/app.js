@@ -32,7 +32,7 @@ function readPrefs() { try { return JSON.parse(localStorage.getItem(PREFS)) || {
 function writePrefs(p) { try { localStorage.setItem(PREFS, JSON.stringify(p)); } catch { /* egal */ } }
 
 // ======================= Zugang =======================
-let blob = null;
+let blobs = []; // privat zuerst, dann Freunde – ein Passwort öffnet den passenden Bereich
 
 const INSECURE_MSG = 'Der private Bereich braucht eine sichere Verbindung (https). Sie wird gerade eingerichtet – bitte später erneut versuchen.';
 
@@ -59,16 +59,22 @@ async function init() {
   applyTheme(readPrefs().theme);
   $('#gate-form').addEventListener('submit', onLogin);
   if (!(await ensureSecure())) return;
-  try {
-    const res = await fetch('data/data.enc.json', { cache: 'no-cache' });
-    if (res.ok) blob = await res.json();
-  } catch { /* offline */ }
-  if (blob) {
-    const key = await storedKey();
-    if (key) {
-      try { start(await decrypt(blob, key), key); return; } catch { forgetKey(); }
-    }
+  blobs = (await Promise.all(['data/data.enc.json', 'data/friends.enc.json'].map((u) => fetch(u, { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null)))).filter(Boolean);
+  const key = blobs.length ? await storedKey() : null;
+  if (key) {
+    const data = await openAny(key);
+    if (data) { start(data, key); return; }
+    forgetKey();
   }
+}
+
+// Erstes Paket, das sich mit dem Schlüssel öffnen lässt; null, wenn keins passt
+async function openAny(key) {
+  for (const b of blobs) {
+    try { return await decrypt(b, key); } catch (err) { if (err?.name !== 'OperationError') throw err; }
+  }
+  return null;
 }
 
 async function onLogin(ev) {
@@ -76,13 +82,14 @@ async function onLogin(ev) {
   const msg = $('#gate-msg'), btn = $('#gate-submit');
   msg.textContent = '';
   if (!window.crypto?.subtle) { msg.textContent = INSECURE_MSG; return; }
-  if (!blob) { msg.textContent = 'Der private Bereich ist gerade nicht verfügbar.'; return; }
+  if (!blobs.length) { msg.textContent = 'Der geschützte Bereich ist gerade nicht verfügbar.'; return; }
   const label = $('#gate-submit-label');
   btn.disabled = true;
   label.textContent = '…';
   try {
-    const key = await deriveKey($('#pw').value, blob.iterations);
-    const data = await decrypt(blob, key);
+    const key = await deriveKey($('#pw').value, blobs[0].iterations);
+    const data = await openAny(key);
+    if (!data) throw Object.assign(new Error('falsch'), { name: 'OperationError' });
     await rememberKey(key, $('#remember').checked);
     start(data, key);
   } catch (err) {
@@ -111,6 +118,7 @@ function start(data, key) {
   DATA = prepare(data);
   $('#gate').hidden = true;
   $('#app').hidden = false;
+  document.documentElement.dataset.role = DATA.role || 'private';
   document.title = 'Schiffsurlaube · Weiffenbach';
 
   const years = [...new Set(DATA.cruises.map((c) => year(c.start)))].sort();
@@ -257,7 +265,7 @@ function prepare(data) {
     c.portNames.forEach((p) => seenPorts.add(p));
     c.countryNames.forEach((p) => seenCountries.add(p));
   }
-  return { generated: data.generated, cruises, stops, missed, diary, travel, countries: data.countries || {}, ships: data.ships || {} };
+  return { role: data.role || 'private', generated: data.generated, cruises, stops, missed, diary, travel, countries: data.countries || {}, ships: data.ships || {} };
 }
 
 // Zeitzonen entlang der Reise (UTC-Versatz der Häfen, aus dem Wetterarchiv): Umstellungen und Spanne

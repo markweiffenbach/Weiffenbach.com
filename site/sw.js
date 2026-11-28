@@ -3,15 +3,15 @@
 // so passen sie nach einem Update immer zusammen. Fotos, Landkarte, Bibliotheken und das Hintergrundfoto:
 // sofort aus dem Speicher, im Hintergrund aktualisieren.
 // Alles Gespeicherte ist dieselbe öffentliche bzw. verschlüsselte Fassung, die auch der Server ausliefert.
-const CACHE = 'wb-offline-v2';
+const CACHE = 'wb-offline-v3';
 const SHELL = [
-  './', 'index.html', 'data/data.enc.json',
+  './', 'index.html', 'data/data.enc.json', 'data/friends.enc.json',
   'assets/css/site.css', 'assets/vendor/leaflet/leaflet.css', 'assets/vendor/leaflet/leaflet.js', 'assets/vendor/topojson-client.min.js',
   'assets/geo/countries-50m.json',
   'assets/js/app.js', 'assets/js/archive.js', 'assets/js/charts.js', 'assets/js/crypto.js', 'assets/js/diary.js',
   'assets/js/map.js', 'assets/js/seas.js', 'assets/js/ships.js', 'assets/js/trip.js',
 ];
-const FRESH = /\/(index\.html)?$|\/data\/data\.enc\.json$|\/assets\/(js|css)\//;
+const FRESH = /\/(index\.html)?$|\/data\/[a-z]+\.enc\.json$|\/assets\/(js|css)\//;
 
 self.addEventListener('install', (ev) => {
   ev.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));

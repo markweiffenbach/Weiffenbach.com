@@ -3,7 +3,14 @@
 Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten kommen aus dem Google Sheet
 **Schiffsurlaube**, die Seite läuft kostenlos auf GitHub Pages.
 
-- **Ohne Passwort** sehen Besucher nur eine neutrale Startseite.
+- **Drei Bereiche:**
+  - **Öffentlich** (ohne Anmeldung, `/haefen/`, `/hafen/…`, `/schiffe/`, `/schiff/…`): Hafen- und Schiffsführer aus `scripts/public.mjs`.
+    Nur Häfen und Schiffe vergangener Reisen, ohne Jahre, Besuchszahlen oder Namen; Tagebuch nur mit „ja“ in der Spalte
+    „Öffentlich“; Schiffsfotos nur aus Wikimedia Commons mit Urheber und Lizenz; Bewertung und Fazit aus dem Tab „Schiffe“.
+  - **Freunde** (Passwort aus dem Secret `FRIENDS_PASSWORD`; fehlt es, gilt `SITE_PASSWORD`): Dashboard nur mit vergangenen
+    Reisen, ohne Fotos, Kabinen, Mitreisende, Bemerkungen, Fotoalben, Anreise und Buchungen an Bord (`data/friends.enc.json`).
+  - **Privat** (Secret `SITE_PASSWORD`): alles wie bisher (`data/data.enc.json`).
+  Ein Anmeldefeld für beide; die Seite öffnet das Paket, zu dem das Passwort passt.
 - **Mit Passwort** öffnet sich das Dashboard: Weltkarte mit Routen und Häfen, Kennzahlen, Diagramme,
   Länder-Sammlung, Rekorde (auch Tender, Liegezeiten und Nächte im Hafen), ausgefallene Häfen, Logbuch aller Reisen
   und „Heute vor X Jahren“ (welche Reise an diesem Kalendertag lief, sonst der nächste solche Tag im kommenden Monat).
