@@ -23,7 +23,7 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { webcrypto as crypto, createHash } from 'node:crypto';
-import { collectPhotos, collectLocalPhotos, encryptBytes } from './photos.mjs';
+import { collectPhotos, collectLocalPhotos, encryptBytes, publicShipPhotos } from './photos.mjs';
 import { loadCache, saveCache, addWeather, addShipImages } from './enrich.mjs';
 import { buildPublic } from './public.mjs';
 import path from 'node:path';
@@ -498,8 +498,10 @@ const shipsRaw = structuredClone(data.ships);
 
 // Öffentlicher Hafen- und Schiffsführer (ohne Anmeldung, streng gefiltert)
 {
-  const pub = await buildPublic({ data, ships: shipsRaw, outDir: OUT, cacheDir: CACHE_DIR, today: TODAY, offline: !!FROM_JSON });
-  console.log(`ℹ Öffentlich: ${pub.ports} Häfen, ${pub.ships} Schiffe (${pub.photos} mit gemeinfreiem Foto), ${pub.tips} freigegebene Tipps, ${pub.pages} Seiten.`);
+  const own = await publicShipPhotos(warn);
+  const pub = await buildPublic({ data, ships: shipsRaw, outDir: OUT, cacheDir: CACHE_DIR, today: TODAY, offline: !!FROM_JSON, own });
+  console.log(`ℹ Öffentlich: ${pub.ports} Häfen, ${pub.ships} Schiffe (${pub.ownPhotos} mit eigenem, ${pub.photos} mit gemeinfreiem Foto), ${pub.tips} freigegebene Tipps, ${pub.pages} Seiten.`);
+  if (pub.ownUnused) warn(`${pub.ownUnused} eigene Schiffsfotos passen zu keinem Schiff vergangener Reisen (Dateiname = Schiffsname).`);
 }
 // Kennung des Schlüssels für Foto-Dateinamen und Cache (verrät nichts über das Passwort)
 const keyId = createHash('sha256').update(Buffer.from(await crypto.subtle.exportKey('raw', key))).digest('hex').slice(0, 16);
