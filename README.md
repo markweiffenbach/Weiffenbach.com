@@ -10,7 +10,8 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
   - **Freunde** (Passwort aus dem Secret `FRIENDS_PASSWORD`; fehlt es, gilt `SITE_PASSWORD`): Dashboard nur mit vergangenen
     Reisen, ohne Fotos, Kabinen, Mitreisende, Bemerkungen, Fotoalben, Anreise und Buchungen an Bord (`data/friends.enc.json`).
   - **Privat** (Secret `SITE_PASSWORD`): alles wie bisher (`data/data.enc.json`).
-  Ein Anmeldefeld für beide; die Seite öffnet das Paket, zu dem das Passwort passt.
+  Die Startseite ist das öffentliche Dashboard (Kennzahlen, Weltkarte, Häfen nach Kontinent, Schiffe nach Reederei, Länder,
+  neueste Tipps). „Anmelden“ oben rechts fragt erst nach dem Bereich (Freunde oder Privat), dann nach dessen Passwort.
 - **Mit Passwort** öffnet sich das Dashboard: Weltkarte mit Routen und Häfen, Kennzahlen, Diagramme,
   Länder-Sammlung, Rekorde (auch Tender, Liegezeiten und Nächte im Hafen), ausgefallene Häfen, Logbuch aller Reisen
   und „Heute vor X Jahren“ (welche Reise an diesem Kalendertag lief, sonst der nächste solche Tag im kommenden Monat).
