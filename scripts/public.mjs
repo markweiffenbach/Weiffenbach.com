@@ -77,8 +77,9 @@ async function openversePD(shipName) {
   const q = await getJSON(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(`"${shipName}"`)}&license=cc0,pdm&page_size=40`);
   for (const r of q?.results || []) {
     if (!['cc0', 'pdm'].includes(String(r.license).toLowerCase()) || !r.url) continue;
-    if (!squash(`${r.title || ''}`).includes(want)) continue;
-    if (!(r.width >= 800 && r.width > r.height * 1.2)) continue;
+    // Name im Titel oder in den Schlagwörtern (auf Flickr steht er oft nur dort)
+    if (!squash(`${r.title || ''} ${(r.tags || []).map((t) => t.name).join(' ')}`).includes(want)) continue;
+    if (r.width && r.height && !(r.width >= 800 && r.width > r.height * 1.2)) continue;
     return { url: r.url, page: r.foreign_landing_url || r.url, license: r.license === 'cc0' ? 'CC0' : 'Public Domain', source: r.source || 'Openverse' };
   }
   return null;
@@ -105,9 +106,10 @@ async function shipPhoto(ship, cache, dir, offline) {
   const file = path.join(dir, `${ship.slug}.jpg`);
   if (cache[key]?.file && cache[key].pd) { try { await access(file); return cache[key]; } catch { /* neu laden */ } }
   // Erfolglose Suchen eine Woche lang nicht wiederholen – sonst dauert jeder Build viele Minuten
-  if (cache[key]?.fail && Date.now() - cache[key].fail < 7 * 86400000) return null;
+  // (gilt nur für Einträge, bei denen Openverse schon mitgesucht wurde)
+  if (cache[key]?.fail && cache[key].ov && Date.now() - cache[key].fail < 7 * 86400000) return null;
   if (offline) return null;
-  const failed = () => { cache[key] = { fail: Date.now() }; return null; };
+  const failed = () => { cache[key] = { fail: Date.now(), ov: 1 }; return null; };
   const done = (c) => { cache[key] = { pd: true, file: `${ship.slug}.jpg`, ...c }; return cache[key]; };
 
   if (/^https:\/\//i.test(manual)) { // selbst ausgewählt und geprüft
