@@ -29,9 +29,13 @@ async function driveToken(sa) {
   return (await res.json()).access_token;
 }
 
-async function listImages(token, folderId) {
+// Unterordner für eigene Schiffsfotos der öffentlichen Seiten – gehört nicht zu den privaten Reisefotos
+export const isShipFolder = (name) => (name || '').normalize('NFC').trim().toLowerCase() === 'schiffsbilder öffentlich';
+
+async function listImages(token, folderId, { skipShipFolder = true, onlyShipFolder = false } = {}) {
   const out = [];
   const queue = [folderId];
+  const inShip = new Set(); // Ordner-IDs innerhalb von „Schiffsbilder öffentlich“
   while (queue.length) {
     const parent = queue.shift();
     let pageToken = '';
@@ -47,8 +51,12 @@ async function listImages(token, folderId) {
       if (!res.ok) throw new Error(`Drive-Ordner nicht lesbar (HTTP ${res.status}) – ist er für das Dienstkonto freigegeben?`);
       const page = await res.json();
       for (const f of page.files) {
-        if (f.mimeType === 'application/vnd.google-apps.folder') queue.push(f.id);
-        else if (IMAGE_TYPES.test(f.mimeType)) out.push(f);
+        if (f.mimeType === 'application/vnd.google-apps.folder') {
+          const ship = isShipFolder(f.name);
+          if (ship && skipShipFolder && !onlyShipFolder) continue;
+          if (ship || inShip.has(parent)) inShip.add(f.id);
+          queue.push(f.id);
+        } else if (IMAGE_TYPES.test(f.mimeType) && (!onlyShipFolder || inShip.has(parent))) out.push(f);
       }
       pageToken = page.nextPageToken || '';
     } while (pageToken);
@@ -75,6 +83,51 @@ async function download(f, size, token) {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`,
     { headers: { Authorization: `Bearer ${token}` } });
   return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+}
+
+// JPEG ohne Metadaten: entfernt EXIF/XMP (APP1, u. a. GPS, Datum, Kamera), IPTC (APP13), Kommentare und
+// alle übrigen APP-Blöcke außer JFIF (APP0), Farbprofil (APP2 ICC_PROFILE) und Adobe (APP14).
+// Kein JPEG oder unlesbar ⇒ null (dann wird das Bild nicht veröffentlicht).
+export function stripJpegMeta(buf) {
+  if (!buf || buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+  const parts = [buf.subarray(0, 2)];
+  let i = 2;
+  while (i + 4 <= buf.length) {
+    if (buf[i] !== 0xff) return null;
+    const m = buf[i + 1];
+    if (m === 0xff) { i++; continue; } // Füllbytes
+    if (m === 0xda) { parts.push(buf.subarray(i)); return Buffer.concat(parts); } // Bilddaten bis zum Ende
+    if (m === 0xd9) return null;
+    if ((m >= 0xd0 && m <= 0xd7) || m === 0x01) { parts.push(buf.subarray(i, i + 2)); i += 2; continue; }
+    const len = buf.readUInt16BE(i + 2);
+    if (len < 2 || i + 2 + len > buf.length) return null;
+    const seg = buf.subarray(i, i + 2 + len);
+    const keep = !((m >= 0xe0 && m <= 0xef) || m === 0xfe)
+      || m === 0xe0 || m === 0xee || (m === 0xe2 && seg.subarray(4, 15).toString('latin1') === 'ICC_PROFILE');
+    if (keep) parts.push(seg);
+    i += 2 + len;
+  }
+  return null;
+}
+
+/**
+ * Eigene Schiffsfotos aus dem Unterordner „Schiffsbilder öffentlich“ (Dateiname = Schiffsname).
+ * @returns {Promise<Array<{name: string, id: string, rev: string, load: () => Promise<Buffer|null>}>>}
+ */
+export async function publicShipPhotos(warn) {
+  const saJson = process.env.GDRIVE_SERVICE_ACCOUNT, folderId = process.env.PHOTO_FOLDER_ID;
+  if (!saJson || !folderId) return [];
+  try {
+    const token = await driveToken(JSON.parse(saJson));
+    const files = await listImages(token, folderId.trim(), { onlyShipFolder: true });
+    return files.map((f) => ({
+      name: f.name, id: f.id, rev: f.md5Checksum || f.modifiedTime,
+      load: async () => stripJpegMeta(await download(f, 1600, token)),
+    }));
+  } catch (e) {
+    warn(`Eigene Schiffsfotos übersprungen: ${e.message}`);
+    return [];
+  }
 }
 
 export async function encryptBytes(bytes, key) {

@@ -6,7 +6,12 @@ Homepage mit passwortgeschütztem Dashboard „Schiffsurlaube“. Die Daten komm
 - **Drei Bereiche:**
   - **Öffentlich** (ohne Anmeldung, `/haefen/`, `/hafen/…`, `/schiffe/`, `/schiff/…`): Hafen- und Schiffsführer aus `scripts/public.mjs`.
     Nur Häfen und Schiffe vergangener Reisen, ohne Jahre, Besuchszahlen oder Namen; Tagebuch nur mit „ja“ in der Spalte
-    „Öffentlich“; Bilder nur gemeinfrei (Public Domain/CC0) aus Wikimedia Commons oder Openverse; Bewertung und Fazit aus dem Tab „Schiffe“.
+    „Öffentlich“; Schiffsfotos nur eigene Aufnahmen oder gemeinfrei (Public Domain/CC0) aus Wikimedia Commons oder Openverse;
+    Bewertung und Fazit aus dem Tab „Schiffe“.
+    Eigene Schiffsfotos: im Drive-Fotoordner den Unterordner „Schiffsbilder öffentlich“ anlegen, Dateiname = Schiffsname
+    (z. B. `MSC_Seaview.jpg`, Groß-/Kleinschreibung, Leer- und Sonderzeichen egal). Sie haben Vorrang vor gemeinfreien Bildern,
+    werden ohne Metadaten (GPS, Datum, Kamera) veröffentlicht, als „Foto: privat“ gekennzeichnet und erscheinen nicht bei den Reisefotos.
+    Keine erkennbaren Personen zeigen.
     Spalte „Bild öffentlich“ im Tab „Schiffe“: `File:<Commons-Datei>` oder ein https-Link auf ein selbst geprüftes gemeinfreies Bild
     legt das öffentliche Foto fest, `kein` blendet es aus (die Spalte „Bild“ gilt nur für den privaten Bereich).
     Impressum und Datenschutzerklärung unter `/impressum/` und `/datenschutz/`; Name und Anschrift kommen aus den Secrets

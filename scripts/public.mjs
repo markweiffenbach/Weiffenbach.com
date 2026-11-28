@@ -3,7 +3,7 @@
 // Bewusst streng – keine Rückschlüsse auf uns:
 //   • nur Häfen und Schiffe vergangener Reisen, ohne Jahre, Anzahl Besuche oder Reisen, ohne Namen
 //   • Tagebuch nur mit „ja“ in der Spalte „Öffentlich“ und nur aus der Vergangenheit (Titel, Text, Tipps, Links, Art)
-//   • Bilder nur gemeinfrei (Public Domain / CC0) aus Wikimedia Commons – nichts mit Urheberrecht oder Personenbezug
+//   • Bilder nur eigene Schiffsfotos (ohne Metadaten) oder gemeinfrei (Public Domain / CC0) – nichts mit fremdem Urheberrecht oder Personenbezug
 import { readFile, writeFile, mkdir, access, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,11 +97,32 @@ async function download(url, file) {
 }
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'Quelle'; } };
 
-// Reihenfolge: Spalte „Bild öffentlich“ (File:… aus Commons, https-Link auf ein selbst geprüftes gemeinfreies Bild oder „kein“),
-// sonst gemeinfreies Titelbild bzw. Suche in Wikimedia Commons, sonst Openverse.
-async function shipPhoto(ship, cache, dir, offline) {
+// Eigenes Foto aus Drive „Schiffsbilder öffentlich“: Dateiname = Schiffsname (Leer-/Sonderzeichen egal, Ziffern am Ende erlaubt)
+function ownPhotoFor(ship, own) {
+  const want = squash(ship.name);
+  return own.find((o) => {
+    const base = squash(o.name.replace(/\.[^.]+$/, ''));
+    return base === want || (base.startsWith(want) && /^\d+$/.test(base.slice(want.length)));
+  }) || null;
+}
+
+// Reihenfolge: „kein“ in Spalte „Bild öffentlich“, sonst eigenes Foto, sonst Spalte „Bild öffentlich“ (File:… aus Commons,
+// https-Link auf ein selbst geprüftes gemeinfreies Bild), sonst gemeinfreies Titelbild bzw. Suche in Wikimedia Commons, sonst Openverse.
+async function shipPhoto(ship, cache, dir, offline, own = []) {
   const manual = (ship.pubImg || '').trim();
   if (/^(kein|keins|nein|-|–)$/i.test(manual)) return null;
+  const mine = ownPhotoFor(ship, own);
+  if (mine) {
+    const okey = `own|${mine.id}|${mine.rev}`, ofile = path.join(dir, `${ship.slug}-eigen.jpg`);
+    if (cache[okey]?.file) { try { await access(ofile); return cache[okey]; } catch { /* neu laden */ } }
+    const bytes = await mine.load();
+    if (bytes) {
+      await mkdir(dir, { recursive: true });
+      await writeFile(ofile, bytes);
+      cache[okey] = { own: true, file: `${ship.slug}-eigen.jpg` };
+      return cache[okey];
+    }
+  }
   const key = `v3|${ship.name}|${ship.src}|${manual}`;
   const file = path.join(dir, `${ship.slug}.jpg`);
   if (cache[key]?.file && cache[key].pd) { try { await access(file); return cache[key]; } catch { /* neu laden */ } }
@@ -156,7 +177,7 @@ ${body}
 </main>
 <footer class="foot wrap">
   <p>Persönliche Erfahrungen von Kreuzfahrten, ohne Gewähr. Preise, Öffnungszeiten und Wege ändern sich – vor Ort prüfen.</p>
-  <p>Länder: Natural Earth (gemeinfrei) · Schiffsfotos: nur gemeinfreie Bilder (Wikimedia Commons, Openverse), Quelle am Bild</p>
+  <p>Länder: Natural Earth (gemeinfrei) · Schiffsfotos: eigene Aufnahmen oder gemeinfreie Bilder (Wikimedia Commons, Openverse), Nachweis am Bild</p>
   <p><a href="/impressum/">Impressum</a> · <a href="/datenschutz/">Datenschutz</a></p>
 </footer>
 </body>
@@ -168,7 +189,7 @@ ${body}
  * Schreibt die öffentlichen Seiten nach outDir. data: Ergebnis von build() (vor dem Verschlüsseln),
  * ships: Schiffsdaten mit Bild-Vorgabe (imgSrc), today: JJJJ-MM-TT.
  */
-export async function buildPublic({ data, ships, outDir, cacheDir, today, offline = false }) {
+export async function buildPublic({ data, ships, outDir, cacheDir, today, offline = false, own = [] }) {
   const countryInfo = JSON.parse(await readFile(path.join(HERE, 'countryinfo.json'), 'utf8'));
   const past = new Set(data.cruises.filter((c) => c.end < today).map((c) => c.id));
 
@@ -205,8 +226,12 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
   const photoDir = path.join(cacheDir, 'public-ships');
   const cacheFile = path.join(cacheDir, 'public-ships.json');
   const photoCache = await readFile(cacheFile, 'utf8').then(JSON.parse).catch(() => ({}));
-  let photos = 0;
-  for (const s of shipList) { s.photo = await shipPhoto(s, photoCache, photoDir, offline); if (s.photo) photos++; }
+  let photos = 0, ownPhotos = 0;
+  for (const s of shipList) {
+    s.photo = await shipPhoto(s, photoCache, photoDir, offline, own);
+    if (s.photo?.own) ownPhotos++; else if (s.photo) photos++;
+  }
+  const ownUnused = own.filter((o) => !shipList.some((s) => ownPhotoFor(s, [o]))).length;
   await mkdir(cacheDir, { recursive: true });
   await writeFile(cacheFile, JSON.stringify(photoCache, null, 1));
 
@@ -258,7 +283,7 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
       body: `<nav class="crumbs"><a href="/schiffe/">Schiffe</a> › ${esc(s.name)}</nav>
       <section class="hero"><p class="kicker">${esc(s.line)}</p><h1>${esc(s.name)}</h1></section>
       ${s.photo ? `<figure class="ship-photo card"><img src="/assets/img/schiffe/${s.photo.file}" alt="${esc(s.name)}" loading="lazy">
-        <figcaption>Gemeinfreies Foto (${esc(s.photo.license)}) · <a href="${esc(s.photo.page)}" rel="noopener" target="_blank">${esc(s.photo.source || 'Wikimedia Commons')} ↗</a></figcaption></figure>` : ''}
+        <figcaption>${s.photo.own ? 'Foto: privat · alle Rechte vorbehalten' : `Gemeinfreies Foto (${esc(s.photo.license)}) · <a href="${esc(s.photo.page)}" rel="noopener" target="_blank">${esc(s.photo.source || 'Wikimedia Commons')} ↗</a>`}</figcaption></figure>` : ''}
       <div class="grid-2">
         <section class="card"><h2>Fazit</h2>${s.rating || s.verdict ? `<p class="verdict">${stars(s.rating)}</p>${s.verdict ? `<p>${esc(s.verdict)}</p>` : ''}` : '<p class="muted">Folgt.</p>'}</section>
         <section class="card"><h2>Steckbrief</h2><dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
@@ -325,7 +350,7 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
       <p>Die Tipps beruhen auf eigenen Erfahrungen und wurden sorgfältig erstellt; für Richtigkeit, Vollständigkeit und Aktualität wird keine Gewähr übernommen. Preise, Öffnungszeiten und Wege können sich geändert haben.</p>
       <p>Für Inhalte verlinkter fremder Websites sind ausschließlich deren Betreiber verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar; bei Bekanntwerden werden entsprechende Links entfernt.</p></section>
     <section class="card prose"><h2>Bildnachweise</h2>
-      <p>Schiffsfotos werden nur gezeigt, wenn sie gemeinfrei sind (Public Domain oder CC0); sie stammen aus Wikimedia Commons oder über Openverse (z. B. Flickr), die Quelle steht unter jedem Bild. Ländergrenzen: Natural Earth (gemeinfrei).</p></section>` }));
+      <p>Schiffsfotos sind entweder eigene Aufnahmen (alle Rechte vorbehalten) oder gemeinfrei (Public Domain oder CC0) aus Wikimedia Commons bzw. über Openverse (z. B. Flickr); der Nachweis steht unter jedem Bild. Ländergrenzen: Natural Earth (gemeinfrei).</p></section>` }));
   files.set('datenschutz/index.html', page({ title: 'Datenschutzerklärung | Häfen & Schiffe', canonical: '/datenschutz/', desc: 'Informationen zum Datenschutz.', head: '<meta name="robots" content="noindex">',
     body: `<section class="hero"><p class="kicker">Rechtliches</p><h1>Datenschutzerklärung</h1><p class="lead">Stand: ${esc(stand)}</p></section>
     <section class="card prose"><h2>Verantwortlicher</h2>${contact}</section>
@@ -380,5 +405,5 @@ export async function buildPublic({ data, ships, outDir, cacheDir, today, offlin
 
   const urls = ['/', ...[...files.keys()].filter((r) => !/^(impressum|datenschutz)\//.test(r)).map((r) => '/' + r.replace(/index\.html$/, ''))];
   await writeFile(path.join(outDir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
-  return { ports: portList.length, ships: shipList.length, photos, tips, pages: files.size };
+  return { ports: portList.length, ships: shipList.length, photos, ownPhotos, ownUnused, tips, pages: files.size };
 }
