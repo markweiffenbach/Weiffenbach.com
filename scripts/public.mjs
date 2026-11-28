@@ -19,8 +19,17 @@ const ORDER = ['Europa', 'Asien', 'Nordamerika', 'Südamerika', 'Afrika', 'Ozean
 
 // ---------- Schiffsfotos aus Wikimedia Commons ----------
 const UA = { 'User-Agent': 'weiffenbach.com-build/1.0 (cruise port guide)' };
+// Mit kurzer Pause und Wiederholung, sonst drosselt Wikipedia bei vielen Abfragen (HTTP 429)
 async function getJSON(u) {
-  try { const r = await fetch(u, { headers: UA, signal: AbortSignal.timeout(15000) }); return r.ok ? await r.json() : null; } catch { return null; }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await new Promise((r) => setTimeout(r, 250 + attempt * 1500));
+      const res = await fetch(u, { headers: UA, signal: AbortSignal.timeout(15000) });
+      if (res.status === 429 || res.status >= 500) continue;
+      return res.ok ? await res.json() : null;
+    } catch { /* erneut versuchen */ }
+  }
+  return null;
 }
 const SHIPLIKE = /ship|schiff|cruise|kreuzfahrt|vessel|liner/i;
 async function articleImage(lang, title) {
@@ -50,8 +59,12 @@ async function shipPhoto(ship, cache, dir, offline) {
   const info = Object.values(q?.query?.pages || {})[0]?.imageinfo?.[0];
   if (!info) return null; // nur freie Bilder aus Commons
   try {
-    const res = await fetch(info.thumburl || info.url, { headers: UA, signal: AbortSignal.timeout(30000) });
-    if (!res.ok) return null;
+    let res = null;
+    for (let attempt = 0; attempt < 3 && !res?.ok; attempt++) {
+      await new Promise((r) => setTimeout(r, 250 + attempt * 1500));
+      res = await fetch(info.thumburl || info.url, { headers: UA, signal: AbortSignal.timeout(30000) }).catch(() => null);
+    }
+    if (!res?.ok) return null;
     await mkdir(dir, { recursive: true });
     await writeFile(file, Buffer.from(await res.arrayBuffer()));
   } catch { return null; }
